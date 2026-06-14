@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sløret under den Sorte Sol — Kampagnejournal</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --gold: #c9a84c;
+    --gold-dim: #8a6e2f;
+    --gold-glow: rgba(201,168,76,0.35);
+    --parchment: #f0e6c8;
+    --parchment-dark: #d4c49a;
+    --ink: #1a1209;
+    --panel-bg: rgba(12, 8, 3, 0.95);
+    --panel-border: rgba(201,168,76,0.4);
+    --visited: #c9a84c;
+    --mystery: #9b59b6;
+  }
+
+  html, body { width:100%; height:100%; overflow:hidden; background:#0a0703; font-family:'Crimson Text',Georgia,serif; }
+
+  /* MAP */
+  #map-wrap { position:relative; width:100vw; height:100vh; overflow:hidden; cursor:grab; user-select:none; }
+  #map-wrap.grabbing { cursor:grabbing; }
+  #map-inner { position:absolute; transform-origin:0 0; }
+  #map-img { display:block; width:1920px; height:auto; image-rendering:high-quality; }
+
+  /* VIGNETTE */
+  #vignette { position:fixed; inset:0; pointer-events:none; z-index:5;
+    background:radial-gradient(ellipse at center, transparent 55%, rgba(5,3,1,0.45) 80%, rgba(5,3,1,0.85) 100%); }
+
+  /* TITLE */
+  #title-block { position:fixed; top:28px; left:50%; transform:translateX(-50%); text-align:center; z-index:20; pointer-events:none; }
+  #title-block h1 { font-family:'Cinzel',serif; font-size:clamp(1.1rem,2.5vw,1.8rem); color:var(--gold); letter-spacing:0.18em; text-transform:uppercase; text-shadow:0 0 30px var(--gold-glow),0 2px 8px rgba(0,0,0,0.9); }
+  #title-block .subtitle { font-size:0.85rem; color:var(--parchment-dark); letter-spacing:0.22em; text-transform:uppercase; opacity:0.7; margin-top:4px; }
+  .title-rule { width:260px; height:1px; background:linear-gradient(90deg,transparent,var(--gold-dim),transparent); margin:8px auto 0; }
+
+  /* LEGEND */
+  #legend { position:fixed; bottom:28px; left:28px; z-index:20; display:flex; flex-direction:column; gap:7px; }
+  .legend-item { display:flex; align-items:center; gap:8px; font-size:0.78rem; color:var(--parchment-dark); letter-spacing:0.08em; }
+  .legend-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .dot-visited { background:var(--visited); box-shadow:0 0 6px var(--visited); }
+  .dot-mystery { background:var(--mystery); box-shadow:0 0 6px var(--mystery); }
+  .dot-unknown { background:#555; }
+
+  /* ZOOM */
+  #zoom-controls { position:fixed; bottom:28px; right:28px; z-index:20; display:flex; flex-direction:column; gap:6px; }
+  .zoom-btn { width:36px; height:36px; background:var(--panel-bg); border:1px solid var(--panel-border); color:var(--gold); font-size:1.2rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background 0.2s; }
+  .zoom-btn:hover { background:rgba(201,168,76,0.15); }
+
+  /* PINS */
+  .pin { position:absolute; transform:translate(-50%,-50%); cursor:pointer; z-index:10; }
+  .pin-dot { width:14px; height:14px; border-radius:50%; border:2px solid rgba(255,255,255,0.3); transition:transform 0.2s; }
+  .pin:hover .pin-dot { transform:scale(1.4); }
+  .pin.visited .pin-dot { background:var(--visited); box-shadow:0 0 12px var(--gold-glow),0 0 4px var(--visited); }
+  .pin.mystery .pin-dot { background:var(--mystery); box-shadow:0 0 12px rgba(155,89,182,0.5),0 0 4px var(--mystery); }
+  .pin.unknown .pin-dot { background:#444; box-shadow:0 0 6px rgba(0,0,0,0.5); }
+  .pin.visited .pin-dot::after { content:''; position:absolute; inset:-4px; border-radius:50%; border:1px solid var(--gold); animation:pulse 2.5s ease-out infinite; opacity:0; }
+  @keyframes pulse { 0%{opacity:0.7;transform:scale(1)} 100%{opacity:0;transform:scale(2.2)} }
+  .pin-label { position:absolute; left:18px; top:50%; transform:translateY(-50%); white-space:nowrap; font-family:'Cinzel',serif; font-size:0.7rem; color:var(--parchment); text-shadow:0 1px 4px rgba(0,0,0,0.9),0 0 12px rgba(0,0,0,0.8); letter-spacing:0.08em; pointer-events:none; opacity:0; transition:opacity 0.2s; }
+  .pin:hover .pin-label { opacity:1; }
+
+  /* OVERLAY + PANEL */
+  #overlay { position:fixed; inset:0; z-index:30; background:rgba(5,3,1,0.6); backdrop-filter:blur(3px); display:none; align-items:center; justify-content:flex-end; }
+  #overlay.open { display:flex; }
+  #panel { width:min(520px,95vw); height:100vh; background:var(--panel-bg); border-left:1px solid var(--panel-border); overflow-y:auto; position:relative; animation:slideIn 0.25s ease-out; display:flex; flex-direction:column; }
+  @keyframes slideIn { from{transform:translateX(40px);opacity:0} to{transform:translateX(0);opacity:1} }
+
+  /* PANEL HEADER */
+  #panel-header { padding:40px 36px 0; flex-shrink:0; }
+  #panel-close { position:absolute; top:18px; right:20px; background:none; border:none; color:var(--gold-dim); font-size:1.4rem; cursor:pointer; line-height:1; transition:color 0.2s; }
+  #panel-close:hover { color:var(--gold); }
+  .panel-eyebrow { font-size:0.7rem; letter-spacing:0.25em; text-transform:uppercase; color:var(--gold-dim); margin-bottom:10px; }
+  #panel-title { font-family:'Cinzel',serif; font-size:1.5rem; color:var(--gold); line-height:1.2; margin-bottom:6px; text-shadow:0 0 20px var(--gold-glow); }
+  .panel-rule { width:100%; height:1px; background:linear-gradient(90deg,var(--gold-dim),transparent); margin:14px 0 0; }
+
+  /* TABS */
+  #tab-bar { display:flex; border-bottom:1px solid rgba(201,168,76,0.2); flex-shrink:0; padding:0 36px; }
+  .tab-btn { font-family:'Cinzel',serif; font-size:0.68rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--gold-dim); padding:12px 14px 10px; background:none; border:none; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; transition:color 0.2s,border-color 0.2s; }
+  .tab-btn:hover { color:var(--parchment); }
+  .tab-btn.active { color:var(--gold); border-bottom-color:var(--gold); }
+
+  /* TAB CONTENT */
+  #tab-content { padding:24px 36px 60px; flex:1; overflow-y:auto; }
+  .tab-pane { display:none; }
+  .tab-pane.active { display:block; }
+
+  #panel-status { display:inline-block; font-size:0.68rem; letter-spacing:0.18em; text-transform:uppercase; padding:3px 10px; border-radius:2px; margin-bottom:18px; font-family:'Cinzel',serif; }
+  .status-visited { background:rgba(201,168,76,0.15); color:var(--gold); border:1px solid var(--gold-dim); }
+  .status-mystery { background:rgba(155,89,182,0.15); color:#c39bd3; border:1px solid rgba(155,89,182,0.4); }
+  .status-unknown { background:rgba(80,80,80,0.2); color:#888; border:1px solid #444; }
+
+  #panel-desc { color:var(--parchment); font-size:1.05rem; line-height:1.75; margin-bottom:22px; }
+
+  .section-title { font-family:'Cinzel',serif; font-size:0.72rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--gold-dim); margin-bottom:12px; padding-bottom:4px; border-bottom:1px solid rgba(201,168,76,0.2); }
+
+  /* EVENTS */
+  .event-list { list-style:none; margin-bottom:24px; }
+  .event-list li { color:var(--parchment); font-size:0.95rem; line-height:1.6; padding:8px 0 8px 16px; border-left:2px solid var(--gold-dim); margin-bottom:8px; opacity:0.9; }
+  .event-list li .session-tag { font-family:'Cinzel',serif; font-size:0.65rem; color:var(--gold-dim); letter-spacing:0.15em; display:block; margin-bottom:2px; }
+
+  /* NPC CARDS */
+  .npc-card { border:1px solid rgba(201,168,76,0.2); background:rgba(201,168,76,0.04); padding:14px 16px; margin-bottom:12px; }
+  .npc-name { font-family:'Cinzel',serif; font-size:0.9rem; color:var(--gold); margin-bottom:4px; }
+  .npc-role { font-size:0.72rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--gold-dim); margin-bottom:8px; }
+  .npc-desc { color:var(--parchment); font-size:0.92rem; line-height:1.6; opacity:0.9; }
+  .npc-status { display:inline-block; font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; padding:2px 8px; margin-top:6px; }
+  .npc-ally { background:rgba(46,139,87,0.15); color:#7dc99a; border:1px solid rgba(46,139,87,0.3); }
+  .npc-neutral { background:rgba(201,168,76,0.1); color:var(--gold-dim); border:1px solid rgba(201,168,76,0.2); }
+  .npc-mystery { background:rgba(155,89,182,0.1); color:#c39bd3; border:1px solid rgba(155,89,182,0.3); }
+
+  /* BASTION */
+  .bastion-section { margin-bottom:24px; }
+  .bastion-room { border-left:2px solid var(--gold-dim); padding:10px 0 10px 16px; margin-bottom:10px; }
+  .bastion-room-name { font-family:'Cinzel',serif; font-size:0.85rem; color:var(--gold); margin-bottom:4px; }
+  .bastion-room-desc { color:var(--parchment); font-size:0.9rem; line-height:1.6; opacity:0.85; }
+  .bastion-room-status { display:inline-block; font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; padding:2px 7px; margin-top:5px; }
+  .room-built { background:rgba(46,139,87,0.15); color:#7dc99a; border:1px solid rgba(46,139,87,0.3); }
+  .room-planned { background:rgba(201,168,76,0.1); color:var(--gold-dim); border:1px solid rgba(201,168,76,0.2); }
+  .room-possible { background:rgba(80,80,80,0.2); color:#888; border:1px solid #444; }
+
+  .bastion-note { color:var(--parchment-dark); font-size:0.88rem; line-height:1.65; font-style:italic; opacity:0.8; margin-bottom:16px; }
+
+  /* SCROLLBAR */
+  #tab-content::-webkit-scrollbar { width:4px; }
+  #tab-content::-webkit-scrollbar-track { background:transparent; }
+  #tab-content::-webkit-scrollbar-thumb { background:var(--gold-dim); border-radius:2px; }
+
+  #hint { position:fixed; bottom:28px; left:50%; transform:translateX(-50%); font-size:0.72rem; color:rgba(240,230,200,0.35); letter-spacing:0.15em; text-transform:uppercase; z-index:20; pointer-events:none; animation:fadeHint 4s ease-out forwards; animation-delay:1.5s; opacity:0; }
+  @keyframes fadeHint { 0%{opacity:0} 20%{opacity:1} 80%{opacity:1} 100%{opacity:0} }
+</style>
+</head>
+<body>
+
+<div id="map-wrap">
+  <div id="map-inner">
+    <img id="map-img" src="Thalassor_kort.jpg" alt="Verdenskortet over Thalassor" draggable="false">
+
+    <div class="pin visited" style="left:17%;top:46%;" data-id="pilion">
+      <div class="pin-dot"></div><span class="pin-label">Pilion</span>
+    </div>
+    <div class="pin visited" style="left:11%;top:36%;" data-id="clooria">
+      <div class="pin-dot"></div><span class="pin-label">Clooria / Eldoria</span>
+    </div>
+    <div class="pin mystery" style="left:18.5%;top:44%;" data-id="portal">
+      <div class="pin-dot"></div><span class="pin-label">Røgfeldskovens store træ</span>
+    </div>
+    <div class="pin unknown" style="left:27%;top:60%;" data-id="sirhaleth">
+      <div class="pin-dot"></div><span class="pin-label">Sir'haleth</span>
+    </div>
+    <div class="pin unknown" style="left:73%;top:22%;" data-id="vargheim">
+      <div class="pin-dot"></div><span class="pin-label">Vargheim</span>
+    </div>
+    <div class="pin unknown" style="left:72%;top:40%;" data-id="velmora">
+      <div class="pin-dot"></div><span class="pin-label">Velmora</span>
+    </div>
+  </div>
+</div>
+
+<div id="vignette"></div>
+
+<div id="title-block">
+  <h1>Sløret under den Sorte Sol</h1>
+  <div class="subtitle">Thalassor · Kampagnejournal</div>
+  <div class="title-rule"></div>
+</div>
+
+<div id="legend">
+  <div class="legend-item"><div class="legend-dot dot-visited"></div> Besøgt</div>
+  <div class="legend-item"><div class="legend-dot dot-mystery"></div> Mystik ubesvaret</div>
+  <div class="legend-item"><div class="legend-dot dot-unknown"></div> Ukendt</div>
+</div>
+
+<div id="zoom-controls">
+  <button class="zoom-btn" id="btn-in">+</button>
+  <button class="zoom-btn" id="btn-out">−</button>
+  <button class="zoom-btn" id="btn-reset" style="font-size:0.75rem;">↺</button>
+</div>
+
+<div id="hint">Klik på et sted · Scroll eller træk for at navigere</div>
+
+<!-- PANEL -->
+<div id="overlay">
+  <div id="panel">
+    <button id="panel-close">✕</button>
+
+    <div id="panel-header">
+      <div class="panel-eyebrow" id="panel-eyebrow">Sted</div>
+      <h2 id="panel-title">—</h2>
+      <div class="panel-rule"></div>
+    </div>
+
+    <div id="tab-bar"></div>
+
+    <div id="tab-content"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// STEDSDATA
+// ═══════════════════════════════════════════
+const PLACES = {
+
+  pilion: {
+    name: "Pilion",
+    eyebrow: "By · Røgfeldskoven",
+    tabs: ["Historik", "NPC'er", "Fæstningen"],
+    content: {
+      "Historik": `
+        <div id="panel-status" class="status-visited">Besøgt · Aktiv base</div>
+        <p id="panel-desc">En søvnig, afsides by dybt inde i Røgfeldskoven — hjemsted for kampagnens helte og skueplads for begivenheder langt større end byens beskedne størrelse skulle antyde. Det sorte tårn er befriet. Høstfesten nærmer sig.</p>
+        <div class="section-title">Hvad der er sket her</div>
+        <ul class="event-list">
+          <li><span class="session-tag">Session 1–2</span>Gruppen ankommer til Pilion og møder rådsmand Svend Sværdfisk, der overdrager skødet til den gamle kirke — deres nye hjem. To begejstrede børn, Mel og Lia, udfordrer dem til et kapløb mod rådhuset. Rhogu vinder og efterlader et permanent minde i byens klokketårn.</li>
+          <li><span class="session-tag">Session 3–4</span>Alliancer knyttes med Gurli Veldt på Mos og Mjød, druiden Branric Barkhvisker og dværgbrødrene Håvard, Sigurd og Torbjørn. Den spøgefulde grønne mand Shaun sætter gruppen på prøve med en gåde over et bassin med piratfisk.</li>
+          <li><span class="session-tag">Session 5–6</span>Kirken renses for skeletter og ondskab i krypten. Præsten Orins efterladte notesbog afdækkes. Dværgbrødrene begynder renovering og udvidelse af fæstningen.</li>
+          <li><span class="session-tag">Session 7–15</span>Gruppen stormer Det sorte tårn. Levende reb, kister med tænder og spejle der afslører heltenes hemmeligheder afprøver dem til det yderste. Rhogu besættes kortvarigt af krigsguden Bane. Det himmelske væsen Elli befrier dem fra tårnets forbandelse.</li>
+          <li><span class="session-tag">Session 16</span>Pilion fejrer sine befriere. Akt 1 afsluttes. Gruppen når niveau 7.</li>
+          <li><span class="session-tag">Session 22 · Dag 10</span>Et voldsomt slagsmål udspiller sig på Mos og Mjød da Menageriets banditter og den gådefulde Tommel stormer kroen. Holker fra markerne og gæsten Gilbert kæmper uventet på gruppens side. Tommel flygter. Fire dage til høstfesten.</li>
+        </ul>`,
+
+      "NPC'er": `
+        <div class="section-title">Allierede i Pilion</div>
+
+        <div class="npc-card">
+          <div class="npc-name">Gurli Veldt</div>
+          <div class="npc-role">Kromutter · Mos og Mjød</div>
+          <div class="npc-desc">Pilions hjerte og uofficielle informationscenter. Gurli ved alt hvad der sker i byen — og lader de nyankomne helte forstå det uden et ord. Trods initial skepsis er hun nu en pålidelig allieret. Har lovet gruppen et sværd og lov til at beholde en kogbog i bytte for hjælp i Røgfeldskoven.</div>
+          <span class="npc-status npc-ally">Allieret</span>
+        </div>
+
+        <div class="npc-card">
+          <div class="npc-name">Svend Sværdfisk</div>
+          <div class="npc-role">Rådsmand · Rådhuset</div>
+          <div class="npc-desc">Byens officielle leder og en mand med overblik over trådene i Pilion. Gav gruppen skødet til kirken og lovede at finde kort over omegnen. Hader kaos, men anerkender heltenes indsats.</div>
+          <span class="npc-status npc-ally">Allieret</span>
+        </div>
+
+        <div class="npc-card">
+          <div class="npc-name">Branric Barkhvisker</div>
+          <div class="npc-role">Druid · Udkanten af Pilion</div>
+          <div class="npc-desc">En stammende, lettere forvirret lokal druid med en overraskende hårdtslående kompagnon i sit forhave. Kender Røgfeldskoven bedre end nogen anden og har forsynet gruppen med magiske ærter der fungerer som healingsdrikke. Anmodes om hjælp i skoven.</div>
+          <span class="npc-status npc-ally">Allieret</span>
+        </div>
+
+        <div class="npc-card">
+          <div class="npc-name">Håvard, Sigurd og Torbjørn</div>
+          <div class="npc-role">Dværgbrødre · Fæstningen</div>
+          <div class="npc-desc">Tre nordiske dværge med markante accenter og hamrene klar. Håvard arbejder med sten, Torbjørn med træ og Sigurd smelter og bearbejder metaller. De har renoveret og udvidet fæstningen, og troede kampen mod skeletterne i kælderen var overstået — men stillingen som cheerleaders var nu også nok.</div>
+          <span class="npc-status npc-ally">Allierede · Bor i fæstningen</span>
+        </div>
+
+        <div class="npc-card">
+          <div class="npc-name">Marlon</div>
+          <div class="npc-role">Magiker · Sit tårn</div>
+          <div class="npc-desc">En teatralsk tilbagetrukket troldmand der stammer fra Eldoria. Hans private gemakker rummer en kosmisk nattehimmel som loft. Gæstfrihedens reservoir er begrænset, men hans viden om magikersamfundene i Eldoria er uvurderlig.</div>
+          <span class="npc-status npc-neutral">Neutral allieret</span>
+        </div>
+
+        <div class="npc-card">
+          <div class="npc-name">Shaun</div>
+          <div class="npc-role">Den grønne mand · Pilions udkant</div>
+          <div class="npc-desc">En lille rødskægget mand klædt i grønt, der bor i et hundehus dækket af mos med regnbue som tag. Kalder sig skæbnens spøgefugl og søn af gudinden Tymora. Fortuna mærkede en guddommelig gnist i ham. Ikke den samme som archfayen Sean.</div>
+          <span class="npc-status npc-mystery">Mystisk · Formål ukendt</span>
+        </div>
+
+        <div class="npc-card">
+          <div class="npc-name">Holker fra markerne</div>
+          <div class="npc-role">Fighter · Mødt i session 22</div>
+          <div class="npc-desc">Dukkede op under kroens slagsmål og kæmpede på gruppens side uden videre forklaring. Hvem er han, og hvorfor hjalp han?</div>
+          <span class="npc-status npc-mystery">Ukendt motivation</span>
+        </div>`,
+
+      "Fæstningen": `
+        <div class="section-title">Den gamle kirke — Gruppens hjem</div>
+        <p class="bastion-note">En forladt kirke på en bakke i den nordlige del af Pilion. Dværgbrødrene Håvard, Sigurd og Torbjørn har renoveret og udvidet den. Bastion-reglerne fra D&D 2024 styrer hvad der kan bygges og hvornår.</p>
+
+        <div class="section-title" style="margin-top:8px;">Bygget & aktivt</div>
+
+        <div class="bastion-room">
+          <div class="bastion-room-name">Centralsal (tidligere kirkerum)</div>
+          <div class="bastion-room-desc">Det centrale rum er belagt med gulvbrædder og indrettet med borde og bænke til fælles måltider. En hyggelig bænk er opsat der hvor alteret stod.</div>
+          <span class="bastion-room-status room-built">Færdigbygget</span>
+        </div>
+
+        <div class="bastion-room">
+          <div class="bastion-room-name">Soverum (fem + dværgekøjer)</div>
+          <div class="bastion-room-desc">Hvert gruppemedlem har sit eget rum. Dværgbrødrene har udstyret sig selv med et rum med køjesenge i tre niveauer på begge sider — nok til Torbjørn og alle hans slægtninge.</div>
+          <span class="bastion-room-status room-built">Færdigbygget</span>
+        </div>
+
+        <div class="bastion-room">
+          <div class="bastion-room-name">Hemmelig tunnel</div>
+          <div class="bastion-room-desc">En skjult dør fra dværgenes rum leder til en underjordisk skakt der fører op bag ved det ene toilet. Praktisk flugtrute — og den ultimative overraskelse for uindviede.</div>
+          <span class="bastion-room-status room-built">Færdigbygget</span>
+        </div>
+
+        <div class="bastion-room">
+          <div class="bastion-room-name">Køkken</div>
+          <div class="bastion-room-desc">Et fuldt udstyret køkken. Fortuna bruger det flittigt — hendes morgenmad med magiske krydderier giver gruppen midlertidigt ekstra vitalitet.</div>
+          <span class="bastion-room-status room-built">Færdigbygget</span>
+        </div>
+
+        <div class="bastion-room">
+          <div class="bastion-room-name">Krypt (underjordisk)</div>
+          <div class="bastion-room-desc">Renset for flammende skeletter og ondskab. En stenlæsepult vidner om at en vigtig bog — sandsynligvis Orins studie af Det sorte tårn — er fjernet. Bogen er aldrig fundet.</div>
+          <span class="bastion-room-status room-built">Renset</span>
+        </div>
+
+        <div class="section-title" style="margin-top:20px;">Under opførelse / planlagt</div>
+
+        <div class="bastion-room">
+          <div class="bastion-room-name">Smedje</div>
+          <div class="bastion-room-desc">Sigurt har tilbudt at opføre en smedje. Bastion-regel: Smedje giver gruppen mulighed for at fremstille og vedligeholde våben og rustninger under lange hvil.</div>
+          <span class="bastion-room-status room-planned">Under opførelse</span>
+        </div>
+
+        <div class="bastion-room">
+          <div class="bastion-room-name">Arkanum-kontor</div>
+          <div class="bastion-room-desc">Et studierum til magisk forskning og forberedelse. Bastion-regel: Arkanum giver en troldmand eller sorcerer mulighed for at forberede ekstra trylleformularer eller kopiere formularer til en tryllebog.</div>
+          <span class="bastion-room-status room-planned">Under opførelse</span>
+        </div>
+
+        <div class="section-title" style="margin-top:20px;">Mulige fremtidige udvidelser</div>
+
+        <div class="bastion-room">
+          <div class="bastion-room-name">Have / Vækstrum</div>
+          <div class="bastion-room-desc">Bastion-regel: En have giver løbende adgang til sjældne urter og ingredienser til healing-drikke og andre forbrugsgenstande.</div>
+          <span class="bastion-room-status room-possible">Mulig fremtidig</span>
+        </div>
+
+        <div class="bastion-room">
+          <div class="bastion-room-name">Træningsrum</div>
+          <div class="bastion-room-desc">Bastion-regel: Et træningsrum giver gruppens karakterer mulighed for at øve særlige evner i nedetid og potentielt optjene nye færdigheder.</div>
+          <span class="bastion-room-status room-possible">Mulig fremtidig</span>
+        </div>
+
+        <div class="bastion-room">
+          <div class="bastion-room-name">Tempel / Helligdom</div>
+          <div class="bastion-room-desc">Kirken er en naturlig kandidat til at blive et helligt rum. Bastion-regel: Et tempel giver gruppen adgang til divine tjenester og kan tiltrække fromme tilhængere.</div>
+          <span class="bastion-room-status room-possible">Mulig fremtidig</span>
+        </div>`
+    }
+  },
+
+  clooria: {
+    name: "Clooria / Eldoria",
+    eyebrow: "Storby · Vest for Pilion",
+    tabs: ["Historik", "NPC'er"],
+    content: {
+      "Historik": `
+        <div id="panel-status" class="status-visited">Planlagt destination</div>
+        <p id="panel-desc">Den store by mod vest, styret af farverige magiske selskaber der har navngivet sig selv efter farver. Eldoria er uundgåeligt en del af det større billede på kontinentet, og gruppen planlægger at rejse hertil.</p>
+        <div class="section-title">Hvad der er sket her</div>
+        <ul class="event-list">
+          <li><span class="session-tag">Session 8</span>Marlon fortæller om Eldorias magtstruktur: et netværk af farvede magiske selskaber styrer byen — heriblandt det Brune Fællesskab. Han stammer selv herfra.</li>
+          <li><span class="session-tag">Session 17</span>Gruppen beslutter sig for at rejse mod Eldoria. Selise afslører sin pagt med ærkedjævlen Azhirak for gruppen.</li>
+        </ul>`,
+      "NPC'er": `
+        <div class="section-title">Kendte forbindelser</div>
+        <div class="npc-card">
+          <div class="npc-name">Marlon</div>
+          <div class="npc-role">Magiker · Stammer fra Eldoria</div>
+          <div class="npc-desc">Marlons viden om Eldorias interne magtspil og de farvede selskaber kan vise sig uvurderlig når gruppen ankommer. Han er nu hjemhørende i Pilion men fastholder sine forbindelser til storbyen.</div>
+          <span class="npc-status npc-neutral">Kontakt</span>
+        </div>`
+    }
+  },
+
+  portal: {
+    name: "Røgfeldskovens store træ",
+    eyebrow: "Magisk portal · Røgfeldskoven",
+    tabs: ["Historik", "Mysterier"],
+    content: {
+      "Historik": `
+        <div id="panel-status" class="status-mystery">Aktiv portal · Ubesvaret mystik</div>
+        <p id="panel-desc">Dybt inde i Røgfeldskoven skjuler et gammelt kæmmetræ ved sin rod en tovejsportal bygget af archfayen Rawel. Portalen fører til hvad der engang var et blomstrende handelsmekka for transplanare rejsende — nu øde og forladt.</p>
+        <div class="section-title">Hvad der er sket her</div>
+        <ul class="event-list">
+          <li><span class="session-tag">Session 9</span>Børnene Mel og Lia afslører at de har fundet en magisk grotte ved rødderne af et gammelt træ i Røgfeldskoven — derfra stammer den uslebne diamant i Rhogus besiddelse.</li>
+          <li><span class="session-tag">Session 18–20</span>Gruppen aktiverer portalen og træder ind i Rawels forladte handelsmekka. Kæmpe jerntyre vogter stedet. En kiste med et brev fra Rawel afsløres. Fortuna opdager at den sorte mønt er fulgt med tilbage i hendes lomme.</li>
+        </ul>`,
+      "Mysterier": `
+        <div class="section-title">Åbne spørgsmål</div>
+        <ul class="event-list">
+          <li><span class="session-tag">Ubesvaret</span>Hvad skete der med Rawel? Archfayen forlod sit handelsmekka — men hvornår, og hvorfor?</li>
+          <li><span class="session-tag">Ubesvaret</span>Hvad indeholdt Rawels brev i kisten, og hvad er dets betydning for gruppens mission?</li>
+          <li><span class="session-tag">Ubesvaret</span>Er der andre portaler? Rawel er beskrevet som en archfay specialiseret i transplanar handel — dette er sandsynligvis ikke hans eneste konstruktion.</li>
+          <li><span class="session-tag">Ubesvaret</span>Den sorte mønt finder altid vej tilbage til Fortuna. Er portalen på nogen måde forbundet med mønten og Det sorte tårns forbandelse?</li>
+        </ul>`
+    }
+  },
+
+  sirhaleth: {
+    name: "Sir'haleth",
+    eyebrow: "By · Sul'arath",
+    tabs: ["Historik"],
+    content: {
+      "Historik": `
+        <div id="panel-status" class="status-unknown">Ukendt</div>
+        <p id="panel-desc">En by i Sul'arath-regionen. Dens rolle i det større billede er endnu ikke afsløret for gruppen.</p>`
+    }
+  },
+
+  vargheim: {
+    name: "Vargheim",
+    eyebrow: "By · Nordøst",
+    tabs: ["Historik"],
+    content: {
+      "Historik": `
+        <div id="panel-status" class="status-unknown">Ukendt</div>
+        <p id="panel-desc">En by i den nordøstlige del af Thalassor. Intet er endnu afsløret om dens forbindelser til kampagnen.</p>`
+    }
+  },
+
+  velmora: {
+    name: "Velmora",
+    eyebrow: "By · Amar",
+    tabs: ["Historik"],
+    content: {
+      "Historik": `
+        <div id="panel-status" class="status-unknown">Ukendt</div>
+        <p id="panel-desc">En by i Amar-regionen. Intet er endnu afsløret om dens rolle i kampagnens begivenheder.</p>`
+    }
+  }
+};
+
+// ═══════════════════════════════════════════
+// PAN & ZOOM
+// ═══════════════════════════════════════════
+const wrap = document.getElementById('map-wrap');
+const inner = document.getElementById('map-inner');
+let scale=1, panX=0, panY=0, dragging=false, startX, startY, startPanX, startPanY;
+
+function clampPan(x,y){
+  const img=document.getElementById('map-img');
+  const iw=img.naturalWidth||1920, ih=img.naturalHeight||960;
+  const minX=Math.min(0,window.innerWidth-iw*scale), minY=Math.min(0,window.innerHeight-ih*scale);
+  return {x:Math.max(minX,Math.min(0,x)), y:Math.max(minY,Math.min(0,y))};
+}
+function applyTransform(){ inner.style.transform=`translate(${panX}px,${panY}px) scale(${scale})`; }
+function zoomTo(ns,cx,cy){
+  ns=Math.max(0.4,Math.min(3,ns));
+  const r=ns/scale; panX=cx-r*(cx-panX); panY=cy-r*(cy-panY); scale=ns;
+  const c=clampPan(panX,panY); panX=c.x; panY=c.y; applyTransform();
+}
+
+window.addEventListener('load',()=>{
+  const img=document.getElementById('map-img');
+  const init=()=>{
+    const iw=img.naturalWidth||1920, ih=img.naturalHeight||960;
+    scale=Math.min(1,Math.max(window.innerWidth/iw,window.innerHeight/ih));
+    panX=(window.innerWidth-iw*scale)/2; panY=(window.innerHeight-ih*scale)/2;
+    const c=clampPan(panX,panY); panX=c.x; panY=c.y; applyTransform();
+  };
+  img.complete?init():img.onload=init;
+});
+
+wrap.addEventListener('wheel',e=>{e.preventDefault();zoomTo(scale*(e.deltaY<0?1.12:0.89),e.clientX,e.clientY);},{passive:false});
+wrap.addEventListener('mousedown',e=>{if(e.target.closest('.pin')||e.target.closest('#panel'))return;dragging=true;wrap.classList.add('grabbing');startX=e.clientX;startY=e.clientY;startPanX=panX;startPanY=panY;});
+window.addEventListener('mousemove',e=>{if(!dragging)return;const c=clampPan(startPanX+e.clientX-startX,startPanY+e.clientY-startY);panX=c.x;panY=c.y;applyTransform();});
+window.addEventListener('mouseup',()=>{dragging=false;wrap.classList.remove('grabbing');});
+
+let lastDist=null;
+wrap.addEventListener('touchstart',e=>{if(e.touches.length===1){dragging=true;startX=e.touches[0].clientX;startY=e.touches[0].clientY;startPanX=panX;startPanY=panY;}},{passive:true});
+wrap.addEventListener('touchmove',e=>{if(e.touches.length===2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(lastDist)zoomTo(scale*d/lastDist,(e.touches[0].clientX+e.touches[1].clientX)/2,(e.touches[0].clientY+e.touches[1].clientY)/2);lastDist=d;return;}if(!dragging||e.touches.length!==1)return;const c=clampPan(startPanX+e.touches[0].clientX-startX,startPanY+e.touches[0].clientY-startY);panX=c.x;panY=c.y;applyTransform();},{passive:true});
+wrap.addEventListener('touchend',()=>{dragging=false;lastDist=null;});
+
+document.getElementById('btn-in').addEventListener('click',()=>zoomTo(scale*1.25,window.innerWidth/2,window.innerHeight/2));
+document.getElementById('btn-out').addEventListener('click',()=>zoomTo(scale*0.8,window.innerWidth/2,window.innerHeight/2));
+document.getElementById('btn-reset').addEventListener('click',()=>{
+  const img=document.getElementById('map-img');
+  const iw=img.naturalWidth||1920,ih=img.naturalHeight||960;
+  scale=Math.min(1,Math.max(window.innerWidth/iw,window.innerHeight/ih));
+  panX=(window.innerWidth-iw*scale)/2;panY=(window.innerHeight-ih*scale)/2;
+  const c=clampPan(panX,panY);panX=c.x;panY=c.y;applyTransform();
+});
+
+// ═══════════════════════════════════════════
+// PANEL & TABS
+// ═══════════════════════════════════════════
+const overlay=document.getElementById('overlay');
+const tabBar=document.getElementById('tab-bar');
+const tabContent=document.getElementById('tab-content');
+
+function openPanel(id){
+  const p=PLACES[id]; if(!p) return;
+  document.getElementById('panel-eyebrow').textContent=p.eyebrow||'Sted';
+  document.getElementById('panel-title').textContent=p.name;
+
+  // Build tabs
+  tabBar.innerHTML='';
+  tabContent.innerHTML='';
+  p.tabs.forEach((tab,i)=>{
+    const btn=document.createElement('button');
+    btn.className='tab-btn'+(i===0?' active':'');
+    btn.textContent=tab;
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      showTab(p,tab);
+    });
+    tabBar.appendChild(btn);
+  });
+  showTab(p, p.tabs[0]);
+  overlay.classList.add('open');
+  tabContent.scrollTop=0;
+}
+
+function showTab(p,tab){
+  tabContent.innerHTML=`<div class="tab-pane active">${p.content[tab]||'<p style="color:#888;font-style:italic;">Intet indhold endnu.</p>'}</div>`;
+}
+
+document.querySelectorAll('.pin').forEach(pin=>{
+  pin.addEventListener('click',e=>{e.stopPropagation();openPanel(pin.dataset.id);});
+});
+document.getElementById('panel-close').addEventListener('click',()=>overlay.classList.remove('open'));
+overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.classList.remove('open');});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')overlay.classList.remove('open');});
+</script>
+</body>
+</html>
