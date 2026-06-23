@@ -1,0 +1,1669 @@
+<!DOCTYPE html>
+<html lang="da"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sløret under den Sorte Sol — Kampagnejournal</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --gold: #c9a84c;
+    --gold-dim: #8a6e2f;
+    --gold-glow: rgba(201,168,76,0.35);
+    --parchment: #f0e6c8;
+    --parchment-dark: #d4c49a;
+    --ink: #1a1209;
+    --panel-bg: rgba(12, 8, 3, 0.95);
+    --panel-border: rgba(201,168,76,0.4);
+    --visited: #c9a84c;
+    --mystery: #9b59b6;
+  }
+
+  html { font-size:18px; }
+  html, body { width:100%; height:100%; overflow:hidden; background:#0a0703; font-family:'Crimson Text',Georgia,serif; }
+
+  /* MAP */
+  #map-wrap { position:relative; width:100vw; height:100vh; overflow:hidden; cursor:grab; user-select:none; }
+  #map-wrap.grabbing { cursor:grabbing; }
+  #map-inner { position:absolute; transform-origin:0 0; }
+  #map-img { display:block; width:4096px; height:auto; image-rendering:high-quality; max-width:none; }
+
+  /* VIGNETTE */
+  #vignette { position:fixed; inset:0; pointer-events:none; z-index:5;
+    background:radial-gradient(ellipse at center, transparent 55%, rgba(5,3,1,0.45) 80%, rgba(5,3,1,0.85) 100%); }
+
+  /* TITLE */
+  #title-block { position:fixed; top:28px; left:50%; transform:translateX(-50%); text-align:center; z-index:20; pointer-events:none; }
+  #title-block h1 { font-family:'Cinzel',serif; font-size:clamp(1.1rem,2.5vw,1.8rem); color:var(--gold); letter-spacing:0.18em; text-transform:uppercase; text-shadow:0 0 30px var(--gold-glow),0 2px 8px rgba(0,0,0,0.9); }
+  #title-block .subtitle { font-size:0.85rem; color:var(--parchment-dark); letter-spacing:0.22em; text-transform:uppercase; opacity:0.7; margin-top:4px; }
+  .title-rule { width:260px; height:1px; background:linear-gradient(90deg,transparent,var(--gold-dim),transparent); margin:8px auto 0; }
+
+  /* LEGEND */
+  #legend { position:fixed; bottom:28px; left:28px; z-index:20; display:flex; flex-direction:column; gap:7px; }
+  .legend-item { display:flex; align-items:center; gap:8px; font-size:0.78rem; color:var(--parchment-dark); letter-spacing:0.08em; }
+  .legend-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .dot-visited { background:var(--visited); box-shadow:0 0 6px var(--visited); }
+  .dot-mystery { background:var(--mystery); box-shadow:0 0 6px var(--mystery); }
+  .dot-unknown { background:#555; }
+
+  /* ZOOM */
+  #zoom-controls { position:fixed; bottom:28px; right:28px; z-index:20; display:flex; flex-direction:column; gap:6px; }
+
+  /* SEARCH */
+  #search-wrap { position:fixed; top:28px; right:28px; z-index:25; }
+  #search-box { width:230px; background:var(--panel-bg); border:1px solid var(--panel-border); color:var(--parchment); font-family:'Crimson Text',Georgia,serif; font-size:0.88rem; padding:9px 14px; outline:none; transition:width 0.2s,border-color 0.2s; }
+  #search-box::placeholder { color:rgba(212,196,154,0.45); font-style:italic; }
+  #search-box:focus { width:280px; border-color:var(--gold-dim); }
+  #search-results { position:absolute; top:calc(100% + 6px); left:0; right:0; background:var(--panel-bg); border:1px solid var(--panel-border); max-height:0; overflow:hidden; opacity:0; transition:max-height 0.2s,opacity 0.2s; }
+  #search-results.open { max-height:340px; opacity:1; overflow-y:auto; }
+  .search-result { padding:10px 14px; cursor:pointer; border-bottom:1px solid rgba(201,168,76,0.12); transition:background 0.15s; }
+  .search-result:last-child { border-bottom:none; }
+  .search-result:hover { background:rgba(201,168,76,0.1); }
+  .search-result-name { font-family:'Cinzel',serif; font-size:0.78rem; color:var(--gold); letter-spacing:0.04em; }
+  .search-result-meta { font-size:0.7rem; color:var(--parchment-dark); letter-spacing:0.06em; text-transform:uppercase; margin-top:2px; opacity:0.75; }
+  .search-result-snippet { font-size:0.78rem; color:var(--parchment-dark); margin-top:4px; line-height:1.4; opacity:0.8; }
+  #search-empty { padding:14px; font-size:0.8rem; color:var(--parchment-dark); font-style:italic; opacity:0.6; }
+  #search-results::-webkit-scrollbar { width:4px; }
+  #search-results::-webkit-scrollbar-track { background:transparent; }
+  #search-results::-webkit-scrollbar-thumb { background:var(--gold-dim); border-radius:2px; }
+  .zoom-btn { width:36px; height:36px; background:var(--panel-bg); border:1px solid var(--panel-border); color:var(--gold); font-size:1.2rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background 0.2s; }
+  .zoom-btn:hover { background:rgba(201,168,76,0.15); }
+
+  /* PINS */
+  .pin { position:absolute; transform:translate(-50%,-50%); cursor:pointer; z-index:10; }
+  .pin-dot { width:28px; height:28px; border-radius:50%; border:3px solid rgba(255,255,255,0.45); transition:transform 0.2s; }
+  .pin:hover .pin-dot { transform:scale(1.3); }
+  .pin.visited .pin-dot { background:var(--visited); box-shadow:0 0 12px var(--gold-glow),0 0 4px var(--visited); }
+  .pin.mystery .pin-dot { background:var(--mystery); box-shadow:0 0 12px rgba(155,89,182,0.5),0 0 4px var(--mystery); }
+  .pin.unknown .pin-dot { background:#444; box-shadow:0 0 6px rgba(0,0,0,0.5); }
+  .pin.visited .pin-dot::after { content:''; position:absolute; inset:-4px; border-radius:50%; border:1px solid var(--gold); animation:pulse 2.5s ease-out infinite; opacity:0; }
+  @keyframes pulse { 0%{opacity:0.7;transform:scale(1)} 100%{opacity:0;transform:scale(2.2)} }
+  .pin-label { position:absolute; left:34px; top:50%; transform:translateY(-50%); white-space:nowrap; font-family:'Cinzel',serif; font-size:1.05rem; color:var(--parchment); text-shadow:0 1px 6px rgba(0,0,0,0.95),0 0 16px rgba(0,0,0,0.9); letter-spacing:0.06em; pointer-events:none; opacity:0; transition:opacity 0.2s; background:rgba(5,3,1,0.55); padding:3px 10px; border-radius:2px; }
+  .pin:hover .pin-label { opacity:1; }
+
+  /* OVERLAY + PANEL */
+  #overlay { position:fixed; inset:0; z-index:30; background:rgba(5,3,1,0.6); backdrop-filter:blur(3px); display:none; align-items:center; justify-content:flex-end; }
+  #overlay.open { display:flex; }
+  #panel { width:min(580px,95vw); height:100vh; background:var(--panel-bg); border-left:1px solid var(--panel-border); overflow-y:auto; position:relative; animation:slideIn 0.25s ease-out; display:flex; flex-direction:column; }
+  @keyframes slideIn { from{transform:translateX(40px);opacity:0} to{transform:translateX(0);opacity:1} }
+
+  /* PANEL HEADER */
+  #panel-header { padding:40px 36px 0; flex-shrink:0; }
+  #panel-close { position:absolute; top:18px; right:20px; background:none; border:none; color:var(--gold-dim); font-size:1.4rem; cursor:pointer; line-height:1; transition:color 0.2s; }
+  #panel-close:hover { color:var(--gold); }
+  .panel-eyebrow { font-size:0.78rem; letter-spacing:0.25em; text-transform:uppercase; color:var(--gold-dim); margin-bottom:10px; }
+  #panel-title { font-family:'Cinzel',serif; font-size:1.65rem; color:var(--gold); line-height:1.2; margin-bottom:6px; text-shadow:0 0 20px var(--gold-glow); }
+  .panel-rule { width:100%; height:1px; background:linear-gradient(90deg,var(--gold-dim),transparent); margin:14px 0 0; }
+
+  /* TABS */
+  #tab-bar { display:flex; border-bottom:1px solid rgba(201,168,76,0.2); flex-shrink:0; padding:0 36px; }
+  .tab-btn { font-family:'Cinzel',serif; font-size:0.75rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--gold-dim); padding:12px 14px 10px; background:none; border:none; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; transition:color 0.2s,border-color 0.2s; }
+  .tab-btn:hover { color:var(--parchment); }
+  .tab-btn.active { color:var(--gold); border-bottom-color:var(--gold); }
+
+  /* TAB CONTENT */
+  #tab-content { padding:24px 36px 60px; flex:1; overflow-y:auto; }
+  .tab-pane { display:none; }
+  .tab-pane.active { display:block; }
+
+  #panel-status { display:inline-block; font-size:0.68rem; letter-spacing:0.18em; text-transform:uppercase; padding:3px 10px; border-radius:2px; margin-bottom:18px; font-family:'Cinzel',serif; }
+  .status-visited { background:rgba(201,168,76,0.15); color:var(--gold); border:1px solid var(--gold-dim); }
+  .status-mystery { background:rgba(155,89,182,0.15); color:#c39bd3; border:1px solid rgba(155,89,182,0.4); }
+  .status-unknown { background:rgba(80,80,80,0.2); color:#888; border:1px solid #444; }
+
+  #panel-desc { color:var(--parchment); font-size:1.15rem; line-height:1.8; margin-bottom:22px; }
+
+  .section-title { font-family:'Cinzel',serif; font-size:0.72rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--gold-dim); margin-bottom:12px; padding-bottom:4px; border-bottom:1px solid rgba(201,168,76,0.2); }
+
+  /* EVENTS */
+  .event-list { list-style:none; margin-bottom:24px; }
+  .event-list li { color:var(--parchment); font-size:1.05rem; line-height:1.65; padding:8px 0 8px 16px; border-left:2px solid var(--gold-dim); margin-bottom:8px; opacity:0.9; }
+  .event-list li .session-tag { font-family:'Cinzel',serif; font-size:0.72rem; color:var(--gold-dim); letter-spacing:0.15em; display:block; margin-bottom:2px; }
+
+  /* NPC CARDS */
+  .npc-card { border:1px solid rgba(201,168,76,0.2); background:rgba(201,168,76,0.04); padding:14px 16px; margin-bottom:12px; }
+  .npc-name { font-family:'Cinzel',serif; font-size:1rem; color:var(--gold); margin-bottom:4px; }
+  .npc-role { font-size:0.8rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--gold-dim); margin-bottom:8px; }
+  .npc-desc { color:var(--parchment); font-size:1.02rem; line-height:1.65; opacity:0.92; }
+  .npc-status { display:inline-block; font-size:0.7rem; letter-spacing:0.12em; text-transform:uppercase; padding:2px 8px; margin-top:6px; }
+  .npc-ally { background:rgba(46,139,87,0.15); color:#7dc99a; border:1px solid rgba(46,139,87,0.3); }
+  .npc-neutral { background:rgba(201,168,76,0.1); color:var(--gold-dim); border:1px solid rgba(201,168,76,0.2); }
+  .npc-mystery { background:rgba(155,89,182,0.1); color:#c39bd3; border:1px solid rgba(155,89,182,0.3); }
+
+  /* BASTION */
+  .bastion-section { margin-bottom:24px; }
+  .bastion-room { border-left:2px solid var(--gold-dim); padding:10px 0 10px 16px; margin-bottom:10px; }
+  .bastion-room-name { font-family:'Cinzel',serif; font-size:0.95rem; color:var(--gold); margin-bottom:4px; }
+  .bastion-room-desc { color:var(--parchment); font-size:1rem; line-height:1.65; opacity:0.88; }
+  .bastion-room-status { display:inline-block; font-size:0.68rem; letter-spacing:0.12em; text-transform:uppercase; padding:2px 7px; margin-top:5px; }
+  .room-built { background:rgba(46,139,87,0.15); color:#7dc99a; border:1px solid rgba(46,139,87,0.3); }
+  .room-planned { background:rgba(201,168,76,0.1); color:var(--gold-dim); border:1px solid rgba(201,168,76,0.2); }
+  .room-possible { background:rgba(80,80,80,0.2); color:#888; border:1px solid #444; }
+
+  .bastion-note { color:var(--parchment-dark); font-size:0.88rem; line-height:1.65; font-style:italic; opacity:0.8; margin-bottom:16px; }
+
+  /* SCROLLBAR */
+  #tab-content::-webkit-scrollbar { width:4px; }
+  #tab-content::-webkit-scrollbar-track { background:transparent; }
+  #tab-content::-webkit-scrollbar-thumb { background:var(--gold-dim); border-radius:2px; }
+
+  #hint { position:fixed; bottom:28px; left:50%; transform:translateX(-50%); font-size:0.72rem; color:rgba(240,230,200,0.35); letter-spacing:0.15em; text-transform:uppercase; z-index:20; pointer-events:none; animation:fadeHint 4s ease-out forwards; animation-delay:1.5s; opacity:0; }
+  @keyframes fadeHint { 0%{opacity:0} 20%{opacity:1} 80%{opacity:1} 100%{opacity:0} }
+
+  /* ── EDITOR ── */
+  #editor-lock { position:fixed; top:28px; left:28px; z-index:25; width:36px; height:36px; background:var(--panel-bg); border:1px solid var(--panel-border); color:var(--gold-dim); font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:color 0.2s,border-color 0.2s; }
+  #editor-lock:hover { color:var(--gold); border-color:var(--gold); }
+  #editor-lock.active { color:#e74c3c; border-color:#e74c3c; }
+
+  /* ── JOURNAL ── */
+  #journal-btn { position:fixed; top:74px; right:28px; z-index:25; height:36px; padding:0 16px; background:var(--panel-bg); border:1px solid var(--panel-border); color:var(--gold-dim); font-family:'Cinzel',serif; font-size:0.72rem; letter-spacing:0.12em; text-transform:uppercase; cursor:pointer; display:flex; align-items:center; gap:7px; transition:color 0.2s,border-color 0.2s; }
+  #journal-btn:hover { color:var(--gold); border-color:var(--gold); }
+
+  #journal-overlay { position:fixed; inset:0; z-index:35; display:none; pointer-events:none; }
+  #journal-overlay.open { display:block; }
+  #journal-panel {
+    position:fixed; top:90px; left:calc(50vw - 320px);
+    width:min(640px,88vw); height:min(72vh,650px);
+    background:var(--panel-bg); border:1px solid var(--panel-border);
+    box-shadow:0 14px 55px rgba(0,0,0,0.65);
+    pointer-events:auto;
+    display:flex; flex-direction:column;
+    opacity:0; transform:scale(0.97); transition:opacity 0.18s,transform 0.18s;
+  }
+  #journal-overlay.open #journal-panel { opacity:1; transform:scale(1); }
+  #journal-header {
+    flex-shrink:0; cursor:grab; padding:22px 56px 16px 32px; border-bottom:1px solid rgba(201,168,76,0.15);
+    user-select:none; position:relative;
+  }
+  #journal-header.dragging-journal { cursor:grabbing; }
+  #journal-body-scroll { flex:1; overflow-y:auto; padding:24px 36px 50px; }
+  #journal-close { position:absolute; top:14px; right:14px; background:rgba(255,255,255,0.04); border:1px solid rgba(201,168,76,0.3); width:30px; height:30px; border-radius:50%; color:var(--gold-dim); font-size:1.1rem; cursor:pointer; line-height:1; transition:color 0.2s,border-color 0.2s; display:flex; align-items:center; justify-content:center; }
+  #journal-close:hover { color:var(--gold); border-color:var(--gold); }
+
+  #journal-panel h2 { font-family:'Cinzel',serif; font-size:1.45rem; color:var(--gold); letter-spacing:0.08em; margin-bottom:4px; text-shadow:0 0 20px var(--gold-glow); }
+  #journal-panel .journal-subtitle { font-size:0.76rem; color:var(--parchment-dark); letter-spacing:0.14em; text-transform:uppercase; opacity:0.6; }
+  #journal-drag-hint { font-size:0.66rem; color:var(--gold-dim); opacity:0.5; letter-spacing:0.1em; text-transform:uppercase; margin-top:8px; }
+
+  .journal-entry { border-left:2px solid var(--gold-dim); padding:4px 0 4px 20px; margin-bottom:34px; position:relative; }
+  .journal-entry::before { content:''; position:absolute; left:-5px; top:6px; width:8px; height:8px; border-radius:50%; background:var(--gold); box-shadow:0 0 8px var(--gold-glow); }
+  .journal-entry-title { font-family:'Cinzel',serif; font-size:1.05rem; color:var(--gold); letter-spacing:0.05em; margin-bottom:4px; }
+  .journal-entry-date { font-size:0.75rem; color:var(--gold-dim); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:12px; opacity:0.8; }
+  .journal-entry-body { color:var(--parchment); font-size:1.05rem; line-height:1.8; }
+  .journal-entry-body p { margin-bottom:10px; }
+
+  .journal-link { color:var(--gold); border-bottom:1px dotted var(--gold-dim); cursor:help; transition:color 0.15s,background 0.15s; padding:0 1px; }
+  .journal-link:hover, .journal-link.pin-highlight-active { color:#fff5dc; background:rgba(201,168,76,0.18); }
+
+  .pin.map-highlight .pin-dot { transform:scale(1.8) !important; box-shadow:0 0 0 6px rgba(201,168,76,0.35),0 0 20px var(--gold) !important; }
+  .pin.map-highlight .pin-label { opacity:1 !important; }
+
+  #journal-empty { color:var(--parchment-dark); font-style:italic; opacity:0.6; font-size:0.95rem; }
+
+  /* Journal entry form (editor mode) */
+  #journal-add-btn { display:none; }
+  body.editor-mode #journal-add-btn { display:inline-flex; }
+  #journal-body-scroll::-webkit-scrollbar { width:5px; }
+  #journal-body-scroll::-webkit-scrollbar-track { background:transparent; }
+  #journal-body-scroll::-webkit-scrollbar-thumb { background:var(--gold-dim); border-radius:2px; }
+
+  #editor-bar { position:fixed; bottom:0; left:0; right:0; z-index:40; background:rgba(10,6,2,0.97); border-top:1px solid var(--panel-border); padding:10px 24px; display:none; align-items:center; gap:12px; flex-wrap:wrap; }
+  #editor-bar.visible { display:flex; }
+  .ed-bar-label { font-family:'Cinzel',serif; font-size:0.65rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--gold-dim); }
+  .ed-btn { font-family:'Cinzel',serif; font-size:0.68rem; letter-spacing:0.12em; text-transform:uppercase; padding:7px 14px; cursor:pointer; border:1px solid; transition:background 0.2s; }
+  .ed-btn-add { background:rgba(46,139,87,0.15); color:#7dc99a; border-color:rgba(46,139,87,0.4); }
+  .ed-btn-add:hover { background:rgba(46,139,87,0.3); }
+  .ed-btn-export { background:rgba(201,168,76,0.15); color:var(--gold); border-color:var(--gold-dim); }
+  .ed-btn-export:hover { background:rgba(201,168,76,0.3); }
+  .ed-btn-exit { background:rgba(231,76,60,0.15); color:#e74c3c; border-color:rgba(231,76,60,0.4); }
+  .ed-btn-exit:hover { background:rgba(231,76,60,0.3); }
+  .ed-hint { font-size:0.75rem; color:rgba(240,230,200,0.4); font-style:italic; }
+
+  body.editor-mode .pin { cursor:grab !important; }
+  body.editor-mode .pin.dragging-pin { cursor:grabbing !important; }
+  body.editor-mode #map-wrap { cursor:grab; }
+
+  /* Pin delete button in editor mode */
+  .pin-delete { position:absolute; top:-10px; right:-10px; width:20px; height:20px; border-radius:50%; background:#e74c3c; border:1px solid rgba(255,255,255,0.5); color:#fff; font-size:0.75rem; cursor:pointer; display:none; align-items:center; justify-content:center; z-index:15; line-height:1; }
+  body.editor-mode .pin-delete { display:flex; }
+
+  /* ── EDITOR MODAL ── */
+  #ed-modal-overlay { position:fixed; inset:0; z-index:50; background:rgba(5,3,1,0.75); backdrop-filter:blur(4px); display:none; align-items:center; justify-content:center; }
+  #ed-modal-overlay.open { display:flex; }
+  #ed-modal, .ed-modal-box { width:min(680px,95vw); max-height:90vh; background:var(--panel-bg); border:1px solid var(--panel-border); overflow-y:auto; padding:36px; position:relative; animation:slideIn 0.2s ease-out; }
+  #ed-modal h3, .ed-modal-box h3 { font-family:'Cinzel',serif; font-size:1.1rem; color:var(--gold); margin-bottom:20px; letter-spacing:0.1em; }
+  #ed-modal .panel-rule, .ed-modal-box .panel-rule { margin:0 0 20px; }
+  .ed-field { margin-bottom:16px; }
+  .ed-field label { display:block; font-family:'Cinzel',serif; font-size:0.65rem; letter-spacing:0.18em; text-transform:uppercase; color:var(--gold-dim); margin-bottom:6px; }
+  .ed-field input, .ed-field select, .ed-field textarea { width:100%; background:rgba(255,255,255,0.05); border:1px solid rgba(201,168,76,0.25); color:var(--parchment); font-family:'Crimson Text',Georgia,serif; font-size:0.95rem; padding:8px 12px; outline:none; resize:vertical; transition:border-color 0.2s; }
+  .ed-field input:focus, .ed-field select:focus, .ed-field textarea:focus { border-color:var(--gold-dim); }
+  .ed-field select option { background:#1a1209; }
+  .ed-field textarea { min-height:80px; }
+  .ed-toolbar { display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
+  .ed-tool-btn { font-family:'Cinzel',serif; font-size:0.65rem; letter-spacing:0.08em; background:rgba(201,168,76,0.08); border:1px solid rgba(201,168,76,0.25); color:var(--gold-dim); padding:5px 10px; cursor:pointer; transition:background 0.2s,color 0.2s; }
+  .ed-tool-btn:hover { background:rgba(201,168,76,0.2); color:var(--gold); }
+  #ed-content { width:100%; min-height:220px; max-height:420px; overflow-y:auto; background:rgba(255,255,255,0.05); border:1px solid rgba(201,168,76,0.25); color:var(--parchment); font-family:'Crimson Text',Georgia,serif; font-size:0.95rem; line-height:1.6; padding:12px 14px; outline:none; transition:border-color 0.2s; }
+  #ed-content:focus { border-color:var(--gold-dim); }
+  #ed-content ul { margin-left:20px; margin-top:6px; margin-bottom:6px; }
+  #ed-content .ed-event-row, #ed-content .ed-npc-row { border:1px dashed rgba(201,168,76,0.3); padding:8px 10px; margin:8px 0; background:rgba(201,168,76,0.04); }
+  #ed-content .ed-event-row .ed-row-label, #ed-content .ed-npc-row .ed-row-label { font-family:'Cinzel',serif; font-size:0.62rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--gold-dim); display:block; margin-bottom:4px; }
+  #ed-content::-webkit-scrollbar { width:4px; }
+  #ed-content::-webkit-scrollbar-track { background:transparent; }
+  #ed-content::-webkit-scrollbar-thumb { background:var(--gold-dim); border-radius:2px; }
+  .ed-tabs-edit { display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
+  .ed-tab-select { font-family:'Cinzel',serif; font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; padding:6px 12px; background:rgba(201,168,76,0.08); border:1px solid rgba(201,168,76,0.2); color:var(--gold-dim); cursor:pointer; transition:background 0.2s; }
+  .ed-tab-select.active { background:rgba(201,168,76,0.2); color:var(--gold); border-color:var(--gold-dim); }
+  .ed-modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:24px; flex-wrap:wrap; }
+  .ed-save { background:rgba(201,168,76,0.2); color:var(--gold); border:1px solid var(--gold-dim); }
+  .ed-save:hover { background:rgba(201,168,76,0.35); }
+  .ed-delete-place { background:rgba(231,76,60,0.15); color:#e74c3c; border:1px solid rgba(231,76,60,0.4); }
+  .ed-delete-place:hover { background:rgba(231,76,60,0.3); }
+  .ed-cancel { background:transparent; color:var(--parchment-dark); border:1px solid rgba(255,255,255,0.15); }
+  .ed-cancel:hover { border-color:rgba(255,255,255,0.3); }
+
+  /* Password modal */
+  #pw-modal-overlay { position:fixed; inset:0; z-index:60; background:rgba(5,3,1,0.85); backdrop-filter:blur(6px); display:none; align-items:center; justify-content:center; }
+  #pw-modal-overlay.open { display:flex; }
+  #pw-modal { width:min(340px,90vw); background:var(--panel-bg); border:1px solid var(--panel-border); padding:36px; text-align:center; animation:slideIn 0.2s ease-out; }
+  #pw-modal h3 { font-family:'Cinzel',serif; font-size:1rem; color:var(--gold); margin-bottom:20px; letter-spacing:0.12em; }
+  #pw-input { width:100%; background:rgba(255,255,255,0.05); border:1px solid rgba(201,168,76,0.25); color:var(--parchment); font-family:'Crimson Text',Georgia,serif; font-size:1.1rem; padding:10px 14px; outline:none; text-align:center; letter-spacing:0.15em; margin-bottom:12px; }
+  #pw-input:focus { border-color:var(--gold-dim); }
+  #pw-error { color:#e74c3c; font-size:0.8rem; min-height:18px; margin-bottom:10px; }
+  #pw-submit { width:100%; font-family:'Cinzel',serif; font-size:0.75rem; letter-spacing:0.15em; text-transform:uppercase; padding:10px; background:rgba(201,168,76,0.15); border:1px solid var(--gold-dim); color:var(--gold); cursor:pointer; transition:background 0.2s; margin-bottom:8px; }
+  #pw-submit:hover { background:rgba(201,168,76,0.3); }
+  #pw-cancel { background:none; border:none; color:var(--parchment-dark); font-size:0.8rem; cursor:pointer; opacity:0.6; }
+  #pw-cancel:hover { opacity:1; }
+  #ed-modal::-webkit-scrollbar, .ed-modal-box::-webkit-scrollbar { width:4px; }
+  #ed-modal::-webkit-scrollbar-track, .ed-modal-box::-webkit-scrollbar-track { background:transparent; }
+  #ed-modal::-webkit-scrollbar-thumb, .ed-modal-box::-webkit-scrollbar-thumb { background:var(--gold-dim); border-radius:2px; }
+
+  /* NPC quick-add form */
+  #npc-form-overlay { position:fixed; inset:0; z-index:55; background:rgba(5,3,1,0.8); backdrop-filter:blur(5px); display:none; align-items:center; justify-content:center; }
+  #npc-form-overlay.open { display:flex; }
+  #npc-form { width:min(440px,90vw); background:var(--panel-bg); border:1px solid var(--panel-border); padding:32px; animation:slideIn 0.2s ease-out; }
+  #npc-form h3 { font-family:'Cinzel',serif; font-size:1rem; color:var(--gold); margin-bottom:6px; letter-spacing:0.1em; }
+</style>
+</head>
+<body class="">
+
+<div id="map-wrap" class="">
+  <div id="map-inner" style="transform: translate(0px, -161px) scale(0.625);">
+    <img id="map-img" src="Thalassor_4k_map.webp" alt="Verdenskortet over Thalassor" draggable="false">
+
+    
+    
+    
+    
+    
+    
+  <div class="pin visited" data-id="pilion" style="left: 15.8%; top: 44.6%;"><div class="pin-dot"></div><span class="pin-label">Pilion</span></div><div class="pin visited" data-id="clooria" style="left: 9.8%; top: 44.5%;"><div class="pin-dot"></div><span class="pin-label">Eldoria</span></div><div class="pin mystery" data-id="portal" style="left: 17.3%; top: 46.8%;"><div class="pin-dot"></div><span class="pin-label">Røgfeldskovens store træ</span></div><div class="pin unknown" data-id="sirhaleth" style="left: 31.4%; top: 73.5%;"><div class="pin-dot"></div><span class="pin-label">Sir'haleth</span></div><div class="pin unknown" data-id="vargheim" style="left: 68.5%; top: 23.9%;"><div class="pin-dot"></div><span class="pin-label">Vargheim</span></div><div class="pin unknown" data-id="velmora" style="left: 60.6%; top: 51%;"><div class="pin-dot"></div><span class="pin-label">Velmora</span></div></div>
+</div>
+
+<div id="vignette"></div>
+
+<div id="title-block">
+  <h1>Sløret under den Sorte Sol</h1>
+  <div class="subtitle">Thalassor · Kampagnejournal</div>
+  <div class="title-rule"></div>
+</div>
+
+<div id="legend">
+  <div class="legend-item"><div class="legend-dot dot-visited"></div> Besøgt</div>
+  <div class="legend-item"><div class="legend-dot dot-mystery"></div> Mystik ubesvaret</div>
+  <div class="legend-item"><div class="legend-dot dot-unknown"></div> Ukendt</div>
+</div>
+
+<div id="search-wrap">
+  <input type="text" id="search-box" placeholder="Søg efter sted, NPC..." autocomplete="off">
+  <div id="search-results"></div>
+</div>
+
+<div id="zoom-controls">
+  <button class="zoom-btn" id="btn-in">+</button>
+  <button class="zoom-btn" id="btn-out">−</button>
+  <button class="zoom-btn" id="btn-reset" style="font-size:0.75rem;">↺</button>
+</div>
+
+<div id="hint">Klik på et sted · Scroll eller træk for at navigere</div>
+
+<!-- EDITOR LOCK BUTTON -->
+<button id="editor-lock" title="Redaktør-tilstand" class="">🔒</button>
+<button id="journal-btn">📜 Resumé</button>
+
+<!-- JOURNAL OVERLAY -->
+<div id="journal-overlay">
+  <div id="journal-panel">
+    <div id="journal-header">
+      <button id="journal-close">✕</button>
+      <h2>Kampagnejournal</h2>
+      <div class="journal-subtitle">Sløret under den Sorte Sol · Sessionsresuméer</div>
+      <div id="journal-drag-hint">⠿ Træk her for at flytte vinduet</div>
+    </div>
+    <div id="journal-body-scroll">
+      <button class="ed-btn ed-btn-add" id="journal-add-btn" style="margin-bottom:20px;">+ Tilføj resumé</button>
+      <div id="journal-entries"></div>
+    </div>
+  </div>
+</div>
+
+<!-- JOURNAL ENTRY EDIT MODAL -->
+<div id="journal-form-overlay" style="position:fixed;inset:0;z-index:55;background:rgba(5,3,1,0.8);backdrop-filter:blur(5px);display:none;align-items:center;justify-content:center;">
+  <div id="jf-modal" class="ed-modal-box">
+    <h3 id="journal-form-title">Tilføj resumé</h3>
+    <div class="panel-rule"></div>
+    <div class="ed-field">
+      <label>Titel (fx "Session 23 — Høstfesten")</label>
+      <input type="text" id="jf-title" placeholder="Session 23 — ...">
+    </div>
+    <div class="ed-field">
+      <label>Dato / undertekst (valgfri)</label>
+      <input type="text" id="jf-date" placeholder="fx 14. juli 2026 · Dag 14 i Pilion">
+    </div>
+    <div class="ed-field">
+      <label>Resumé-tekst</label>
+      <div class="ed-toolbar">
+        <button type="button" class="ed-tool-btn" data-jfcmd="bold" title="Fed"><b>F</b></button>
+        <button type="button" class="ed-tool-btn" data-jfcmd="italic" title="Kursiv"><i>K</i></button>
+        <button type="button" class="ed-tool-btn" data-jfcmd="insertUnorderedList" title="Punktliste">≡</button>
+      </div>
+      <div id="jf-body" contenteditable="true" style="width:100%;min-height:240px;max-height:420px;overflow-y:auto;background:rgba(255,255,255,0.05);border:1px solid rgba(201,168,76,0.25);color:var(--parchment);font-family:'Crimson Text',Georgia,serif;font-size:1rem;line-height:1.7;padding:12px 14px;outline:none;"></div>
+      <div class="ed-hint" style="margin-top:8px;">Tip: navne der matcher et sted/NPC (fx "Gurli", "Pilion") fremhæves automatisk og kan klikkes for at vise stedet på kortet.</div>
+    </div>
+    <div class="ed-modal-actions">
+      <button class="ed-btn ed-delete-place" id="jf-delete">🗑 Slet resumé</button>
+      <button class="ed-btn ed-cancel" id="jf-cancel">Annuller</button>
+      <button class="ed-btn ed-save" id="jf-save">Gem resumé</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDITOR BOTTOM BAR -->
+<div id="editor-bar" class="">
+  <span class="ed-bar-label">Redaktør-tilstand</span>
+  <button class="ed-btn ed-btn-add" id="ed-btn-add">+ Tilføj pin</button>
+  <button class="ed-btn" id="ed-btn-undo" style="background:rgba(201,168,76,0.1);color:var(--gold-dim);border-color:rgba(201,168,76,0.3);" title="Ctrl+Z">↶ Fortryd</button>
+  <button class="ed-btn ed-btn-export" id="ed-btn-export">⬇ Eksporter HTML</button>
+  <span class="ed-hint">Træk pins · Klik pin for at redigere · Højreklik på kortet for ny pin</span>
+  <button class="ed-btn ed-btn-exit" id="ed-btn-exit" style="margin-left:auto;">Afslut redaktør</button>
+</div>
+
+<!-- PASSWORD MODAL -->
+<div id="pw-modal-overlay" class="">
+  <div id="pw-modal">
+    <h3>🔐 Redaktør-adgang</h3>
+    <input type="password" id="pw-input" placeholder="Adgangskode" autocomplete="off">
+    <div id="pw-error"></div>
+    <button id="pw-submit">Lås op</button>
+    <button id="pw-cancel">Annuller</button>
+  </div>
+</div>
+
+<!-- EDITOR PLACE MODAL -->
+<div id="ed-modal-overlay" class="">
+  <div id="ed-modal">
+    <h3 id="ed-modal-title">Rediger: Clooria / Eldoria</h3>
+    <div class="panel-rule"></div>
+    <div class="ed-field">
+      <label>Stednavn</label>
+      <input type="text" id="ed-name">
+    </div>
+    <div class="ed-field">
+      <label>Undertekst (eyebrow)</label>
+      <input type="text" id="ed-eyebrow" placeholder="fx By · Røgfeldskoven">
+    </div>
+    <div class="ed-field">
+      <label>Pin-type</label>
+      <select id="ed-status">
+        <option value="visited">Besøgt (guld)</option>
+        <option value="mystery">Mystik (lilla)</option>
+        <option value="unknown">Ukendt (grå)</option>
+      </select>
+    </div>
+    <div class="panel-rule"></div>
+    <div class="ed-field">
+      <label>Faner (kommasepareret, fx: Historik,NPC'er,Fæstningen)</label>
+      <input type="text" id="ed-tabs">
+    </div>
+    <div class="ed-tabs-edit" id="ed-tab-btns"><button class="ed-tab-select active">Historik</button><button class="ed-tab-select">NPC'er</button></div>
+    <div class="ed-field">
+      <label id="ed-content-label">Indhold — fane: Historik</label>
+      <div class="ed-toolbar">
+        <button type="button" class="ed-tool-btn" data-cmd="bold" title="Fed"><b>F</b></button>
+        <button type="button" class="ed-tool-btn" data-cmd="italic" title="Kursiv"><i>K</i></button>
+        <button type="button" class="ed-tool-btn" data-cmd="insertUnorderedList" title="Punktliste">≡</button>
+        <button type="button" class="ed-tool-btn" id="ed-add-event" title="Tilføj en hændelse/session-linje">+ Hændelse</button>
+        <button type="button" class="ed-tool-btn" id="ed-add-npc" title="Tilføj en NPC/karakter med formular">+ NPC / karakter</button>
+      </div>
+      <div id="ed-content" contenteditable="true">
+        <div id="panel-status" class="status-visited">Planlagt destination</div>
+        <p id="panel-desc">Den store by mod vest, styret af farverige magiske selskaber der har navngivet sig selv efter farver. Eldoria er uundgåeligt en del af det større billede på kontinentet, og gruppen planlægger at rejse hertil.</p>
+        <div class="section-title">Hvad der er sket her</div>
+        <ul class="event-list">
+          <li><span class="session-tag">Session 8</span>Marlon fortæller om Eldorias magtstruktur: et netværk af farvede magiske selskaber styrer byen — heriblandt det Brune Fællesskab. Han stammer selv herfra.</li>
+          <li><span class="session-tag">Session 17</span>Gruppen beslutter sig for at rejse mod Eldoria. Selise afslører sin pagt med ærkedjævlen Azhirak for gruppen.</li>
+        </ul></div>
+    </div>
+    <div class="ed-modal-actions">
+      <button class="ed-btn ed-delete-place" id="ed-delete-place">🗑 Slet sted</button>
+      <button class="ed-btn ed-cancel" id="ed-cancel">Annuller</button>
+      <button class="ed-btn ed-save" id="ed-save">Gem ændringer</button>
+    </div>
+  </div>
+</div>
+
+<!-- QUICK NPC FORM -->
+<div id="npc-form-overlay">
+  <div id="npc-form">
+    <h3>Tilføj NPC / karakter</h3>
+    <div class="panel-rule"></div>
+    <div class="ed-field">
+      <label>Navn</label>
+      <input type="text" id="npc-f-name" placeholder="fx Gurli Veldt">
+    </div>
+    <div class="ed-field">
+      <label>Rolle / sted</label>
+      <input type="text" id="npc-f-role" placeholder="fx Kromutter · Mos og Mjød">
+    </div>
+    <div class="ed-field">
+      <label>Beskrivelse</label>
+      <textarea id="npc-f-desc" rows="4" placeholder="Hvem er personen, og hvad er deres forhold til gruppen?"></textarea>
+    </div>
+    <div class="ed-field">
+      <label>Status</label>
+      <select id="npc-f-status">
+        <option value="npc-ally">Allieret</option>
+        <option value="npc-neutral">Neutral</option>
+        <option value="npc-mystery">Mystisk</option>
+      </select>
+    </div>
+    <div class="ed-modal-actions">
+      <button class="ed-btn ed-cancel" id="npc-f-cancel">Annuller</button>
+      <button class="ed-btn ed-save" id="npc-f-add">Indsæt NPC</button>
+    </div>
+  </div>
+</div>
+
+<!-- PANEL -->
+<div id="overlay">
+  <div id="panel">
+    <button id="panel-close">✕</button>
+
+    <div id="panel-header">
+      <div class="panel-eyebrow" id="panel-eyebrow">Sted</div>
+      <h2 id="panel-title">—</h2>
+      <div class="panel-rule"></div>
+    </div>
+
+    <div id="tab-bar"></div>
+
+    <div id="tab-content"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// STEDSDATA
+// ═══════════════════════════════════════════
+const PLACES = {
+  "pilion": {
+    "name": "Pilion",
+    "eyebrow": "By · Røgfeldskoven",
+    "tabs": [
+      "Historik",
+      "NPC'er",
+      "Fæstningen"
+    ],
+    "content": {
+      "Historik": "\n        <div id=\"panel-status\" class=\"status-visited\">Besøgt · Aktiv base</div>\n        <p id=\"panel-desc\">En søvnig, afsides by dybt inde i Røgfeldskoven — hjemsted for kampagnens helte og skueplads for begivenheder langt større end byens beskedne størrelse skulle antyde. Det sorte tårn er befriet. Høstfesten nærmer sig.</p>\n        <div class=\"section-title\">Hvad der er sket her</div>\n        <ul class=\"event-list\">\n          <li><span class=\"session-tag\">Session 1–2</span>Gruppen ankommer til Pilion og møder rådsmand Svend Sværdfisk, der overdrager skødet til den gamle kirke — deres nye hjem. To begejstrede børn, Mel og Lia, udfordrer dem til et kapløb mod rådhuset. Rhogu vinder og efterlader et permanent minde i byens klokketårn.</li>\n          <li><span class=\"session-tag\">Session 3–4</span>Alliancer knyttes med Gurli Veldt på Mos og Mjød, druiden Branric Barkhvisker og dværgbrødrene Håvard, Sigurd og Torbjørn. Den spøgefulde grønne mand Shaun sætter gruppen på prøve med en gåde over et bassin med piratfisk.</li>\n          <li><span class=\"session-tag\">Session 5–6</span>Kirken renses for skeletter og ondskab i krypten. Præsten Orins efterladte notesbog afdækkes. Dværgbrødrene begynder renovering og udvidelse af fæstningen.</li>\n          <li><span class=\"session-tag\">Session 7–15</span>Gruppen stormer Det sorte tårn. Levende reb, kister med tænder og spejle der afslører heltenes hemmeligheder afprøver dem til det yderste. Rhogu besættes kortvarigt af krigsguden Bane. Det himmelske væsen Elli befrier dem fra tårnets forbandelse.</li>\n          <li><span class=\"session-tag\">Session 16</span>Pilion fejrer sine befriere. Akt 1 afsluttes. Gruppen når niveau 7.</li>\n          <li><span class=\"session-tag\">Session 22 · Dag 10</span>Et voldsomt slagsmål udspiller sig på Mos og Mjød da Menageriets banditter og den gådefulde Tommel stormer kroen. Holker fra markerne og gæsten Gilbert kæmper uventet på gruppens side. Tommel flygter. Fire dage til høstfesten.</li>\n        </ul>",
+      "NPC'er": "\n        <div class=\"section-title\">Allierede i Pilion</div>\n\n        <div class=\"npc-card\">\n          <div class=\"npc-name\">Gurli Veldt</div>\n          <div class=\"npc-role\">Kromutter · Mos og Mjød</div>\n          <div class=\"npc-desc\">Pilions hjerte og uofficielle informationscenter. Gurli ved alt hvad der sker i byen — og lader de nyankomne helte forstå det uden et ord. Trods initial skepsis er hun nu en pålidelig allieret. Har lovet gruppen et sværd og lov til at beholde en kogbog i bytte for hjælp i Røgfeldskoven.</div>\n          <span class=\"npc-status npc-ally\">Allieret</span>\n        </div>\n\n        <div class=\"npc-card\">\n          <div class=\"npc-name\">Svend Sværdfisk</div>\n          <div class=\"npc-role\">Rådsmand · Rådhuset</div>\n          <div class=\"npc-desc\">Byens officielle leder og en mand med overblik over trådene i Pilion. Gav gruppen skødet til kirken og lovede at finde kort over omegnen. Hader kaos, men anerkender heltenes indsats.</div>\n          <span class=\"npc-status npc-ally\">Allieret</span>\n        </div>\n\n        <div class=\"npc-card\">\n          <div class=\"npc-name\">Branric Barkhvisker</div>\n          <div class=\"npc-role\">Druid · Udkanten af Pilion</div>\n          <div class=\"npc-desc\">En stammende, lettere forvirret lokal druid med en overraskende hårdtslående kompagnon i sit forhave. Kender Røgfeldskoven bedre end nogen anden og har forsynet gruppen med magiske ærter der fungerer som healingsdrikke. Anmodes om hjælp i skoven.</div>\n          <span class=\"npc-status npc-ally\">Allieret</span>\n        </div>\n\n        <div class=\"npc-card\">\n          <div class=\"npc-name\">Håvard, Sigurd og Torbjørn</div>\n          <div class=\"npc-role\">Dværgbrødre · Fæstningen</div>\n          <div class=\"npc-desc\">Tre nordiske dværge med markante accenter og hamrene klar. Håvard arbejder med sten, Torbjørn med træ og Sigurd smelter og bearbejder metaller. De har renoveret og udvidet fæstningen, og troede kampen mod skeletterne i kælderen var overstået — men stillingen som cheerleaders var nu også nok.</div>\n          <span class=\"npc-status npc-ally\">Allierede · Bor i fæstningen</span>\n        </div>\n\n        <div class=\"npc-card\">\n          <div class=\"npc-name\">Marlon</div>\n          <div class=\"npc-role\">Magiker · Sit tårn</div>\n          <div class=\"npc-desc\">En teatralsk tilbagetrukket troldmand der stammer fra Eldoria. Hans private gemakker rummer en kosmisk nattehimmel som loft. Gæstfrihedens reservoir er begrænset, men hans viden om magikersamfundene i Eldoria er uvurderlig.</div>\n          <span class=\"npc-status npc-neutral\">Neutral allieret</span>\n        </div>\n\n        <div class=\"npc-card\">\n          <div class=\"npc-name\">Shaun</div>\n          <div class=\"npc-role\">Den grønne mand · Pilions udkant</div>\n          <div class=\"npc-desc\">En lille rødskægget mand klædt i grønt, der bor i et hundehus dækket af mos med regnbue som tag. Kalder sig skæbnens spøgefugl og søn af gudinden Tymora. Fortuna mærkede en guddommelig gnist i ham. Ikke den samme som archfayen Sean.</div>\n          <span class=\"npc-status npc-mystery\">Mystisk · Formål ukendt</span>\n        </div>\n\n        <div class=\"npc-card\">\n          <div class=\"npc-name\">Holker fra markerne</div>\n          <div class=\"npc-role\">Fighter · Mødt i session 22</div>\n          <div class=\"npc-desc\">Dukkede op under kroens slagsmål og kæmpede på gruppens side uden videre forklaring. Hvem er han, og hvorfor hjalp han?</div>\n          <span class=\"npc-status npc-mystery\">Ukendt motivation</span>\n        </div>",
+      "Fæstningen": "\n        <div class=\"section-title\">Den gamle kirke — Gruppens hjem</div>\n        <p class=\"bastion-note\">En forladt kirke på en bakke i den nordlige del af Pilion. Dværgbrødrene Håvard, Sigurd og Torbjørn har renoveret og udvidet den. Bastion-reglerne fra D&D 2024 styrer hvad der kan bygges og hvornår.</p>\n\n        <div class=\"section-title\" style=\"margin-top:8px;\">Bygget & aktivt</div>\n\n        <div class=\"bastion-room\">\n          <div class=\"bastion-room-name\">Centralsal (tidligere kirkerum)</div>\n          <div class=\"bastion-room-desc\">Det centrale rum er belagt med gulvbrædder og indrettet med borde og bænke til fælles måltider. En hyggelig bænk er opsat der hvor alteret stod.</div>\n          <span class=\"bastion-room-status room-built\">Færdigbygget</span>\n        </div>\n\n        <div class=\"bastion-room\">\n          <div class=\"bastion-room-name\">Soverum (fem + dværgekøjer)</div>\n          <div class=\"bastion-room-desc\">Hvert gruppemedlem har sit eget rum. Dværgbrødrene har udstyret sig selv med et rum med køjesenge i tre niveauer på begge sider — nok til Torbjørn og alle hans slægtninge.</div>\n          <span class=\"bastion-room-status room-built\">Færdigbygget</span>\n        </div>\n\n        <div class=\"bastion-room\">\n          <div class=\"bastion-room-name\">Hemmelig tunnel</div>\n          <div class=\"bastion-room-desc\">En skjult dør fra dværgenes rum leder til en underjordisk skakt der fører op bag ved det ene toilet. Praktisk flugtrute — og den ultimative overraskelse for uindviede.</div>\n          <span class=\"bastion-room-status room-built\">Færdigbygget</span>\n        </div>\n\n        <div class=\"bastion-room\">\n          <div class=\"bastion-room-name\">Køkken</div>\n          <div class=\"bastion-room-desc\">Et fuldt udstyret køkken. Fortuna bruger det flittigt — hendes morgenmad med magiske krydderier giver gruppen midlertidigt ekstra vitalitet.</div>\n          <span class=\"bastion-room-status room-built\">Færdigbygget</span>\n        </div>\n\n        <div class=\"bastion-room\">\n          <div class=\"bastion-room-name\">Krypt (underjordisk)</div>\n          <div class=\"bastion-room-desc\">Renset for flammende skeletter og ondskab. En stenlæsepult vidner om at en vigtig bog — sandsynligvis Orins studie af Det sorte tårn — er fjernet. Bogen er aldrig fundet.</div>\n          <span class=\"bastion-room-status room-built\">Renset</span>\n        </div>\n\n        <div class=\"section-title\" style=\"margin-top:20px;\">Under opførelse / planlagt</div>\n\n        <div class=\"bastion-room\">\n          <div class=\"bastion-room-name\">Smedje</div>\n          <div class=\"bastion-room-desc\">Sigurt har tilbudt at opføre en smedje. Bastion-regel: Smedje giver gruppen mulighed for at fremstille og vedligeholde våben og rustninger under lange hvil.</div>\n          <span class=\"bastion-room-status room-planned\">Under opførelse</span>\n        </div>\n\n        <div class=\"bastion-room\">\n          <div class=\"bastion-room-name\">Arkanum-kontor</div>\n          <div class=\"bastion-room-desc\">Et studierum til magisk forskning og forberedelse. Bastion-regel: Arkanum giver en troldmand eller sorcerer mulighed for at forberede ekstra trylleformularer eller kopiere formularer til en tryllebog.</div>\n          <span class=\"bastion-room-status room-planned\">Under opførelse</span>\n        </div>\n\n        <div class=\"section-title\" style=\"margin-top:20px;\">Mulige fremtidige udvidelser</div>\n\n        <div class=\"bastion-room\">\n          <div class=\"bastion-room-name\">Have / Vækstrum</div>\n          <div class=\"bastion-room-desc\">Bastion-regel: En have giver løbende adgang til sjældne urter og ingredienser til healing-drikke og andre forbrugsgenstande.</div>\n          <span class=\"bastion-room-status room-possible\">Mulig fremtidig</span>\n        </div>\n\n        <div class=\"bastion-room\">\n          <div class=\"bastion-room-name\">Træningsrum</div>\n          <div class=\"bastion-room-desc\">Bastion-regel: Et træningsrum giver gruppens karakterer mulighed for at øve særlige evner i nedetid og potentielt optjene nye færdigheder.</div>\n          <span class=\"bastion-room-status room-possible\">Mulig fremtidig</span>\n        </div>\n\n        <div class=\"bastion-room\">\n          <div class=\"bastion-room-name\">Tempel / Helligdom</div>\n          <div class=\"bastion-room-desc\">Kirken er en naturlig kandidat til at blive et helligt rum. Bastion-regel: Et tempel giver gruppen adgang til divine tjenester og kan tiltrække fromme tilhængere.</div>\n          <span class=\"bastion-room-status room-possible\">Mulig fremtidig</span>\n        </div>"
+    },
+    "x": 15.8,
+    "y": 44.6,
+    "status": "visited"
+  },
+  "clooria": {
+    "name": "Eldoria",
+    "eyebrow": "Storby · Vest for Pilion",
+    "tabs": [
+      "Historik",
+      "NPC'er"
+    ],
+    "content": {
+      "Historik": "\n        <div id=\"panel-status\" class=\"status-visited\">Planlagt destination</div>\n        <p id=\"panel-desc\">Den store by mod vest, styret af farverige magiske selskaber der har navngivet sig selv efter farver. Eldoria er uundgåeligt en del af det større billede på kontinentet, og gruppen planlægger at rejse hertil.</p>\n        <div class=\"section-title\">Hvad der er sket her</div>\n        <ul class=\"event-list\">\n          <li><span class=\"session-tag\">Session 8</span>Marlon fortæller om Eldorias magtstruktur: et netværk af farvede magiske selskaber styrer byen — heriblandt det Brune Fællesskab. Han stammer selv herfra.</li>\n          <li><span class=\"session-tag\">Session 17</span>Gruppen beslutter sig for at rejse mod Eldoria. Selise afslører sin pagt med ærkedjævlen Azhirak for gruppen.</li>\n        </ul>",
+      "NPC'er": "\n        <div class=\"section-title\">Kendte forbindelser</div>\n        <div class=\"npc-card\">\n          <div class=\"npc-name\">Marlon</div>\n          <div class=\"npc-role\">Magiker · Stammer fra Eldoria</div>\n          <div class=\"npc-desc\">Marlons viden om Eldorias interne magtspil og de farvede selskaber kan vise sig uvurderlig når gruppen ankommer. Han er nu hjemhørende i Pilion men fastholder sine forbindelser til storbyen.</div>\n          <span class=\"npc-status npc-neutral\">Kontakt</span>\n        </div>"
+    },
+    "x": 9.8,
+    "y": 44.5,
+    "status": "visited"
+  },
+  "portal": {
+    "name": "Røgfeldskovens store træ",
+    "eyebrow": "Magisk portal · Røgfeldskoven",
+    "tabs": [
+      "Historik",
+      "Mysterier"
+    ],
+    "content": {
+      "Historik": "\n        <div id=\"panel-status\" class=\"status-mystery\">Aktiv portal · Ubesvaret mystik</div>\n        <p id=\"panel-desc\">Dybt inde i Røgfeldskoven skjuler et gammelt kæmmetræ ved sin rod en tovejsportal bygget af archfayen Rawel. Portalen fører til hvad der engang var et blomstrende handelsmekka for transplanare rejsende — nu øde og forladt.</p>\n        <div class=\"section-title\">Hvad der er sket her</div>\n        <ul class=\"event-list\">\n          <li><span class=\"session-tag\">Session 9</span>Børnene Mel og Lia afslører at de har fundet en magisk grotte ved rødderne af et gammelt træ i Røgfeldskoven — derfra stammer den uslebne diamant i Rhogus besiddelse.</li>\n          <li><span class=\"session-tag\">Session 18–20</span>Gruppen aktiverer portalen og træder ind i Rawels forladte handelsmekka. Kæmpe jerntyre vogter stedet. En kiste med et brev fra Rawel afsløres. Fortuna opdager at den sorte mønt er fulgt med tilbage i hendes lomme.</li>\n        </ul>",
+      "Mysterier": "\n        <div class=\"section-title\">Åbne spørgsmål</div>\n        <ul class=\"event-list\">\n          <li><span class=\"session-tag\">Ubesvaret</span>Hvad skete der med Rawel? Archfayen forlod sit handelsmekka — men hvornår, og hvorfor?</li>\n          <li><span class=\"session-tag\">Ubesvaret</span>Hvad indeholdt Rawels brev i kisten, og hvad er dets betydning for gruppens mission?</li>\n          <li><span class=\"session-tag\">Ubesvaret</span>Er der andre portaler? Rawel er beskrevet som en archfay specialiseret i transplanar handel — dette er sandsynligvis ikke hans eneste konstruktion.</li>\n          <li><span class=\"session-tag\">Ubesvaret</span>Den sorte mønt finder altid vej tilbage til Fortuna. Er portalen på nogen måde forbundet med mønten og Det sorte tårns forbandelse?</li>\n        </ul>"
+    },
+    "x": 17.3,
+    "y": 46.8,
+    "status": "mystery"
+  },
+  "sirhaleth": {
+    "name": "Sir'haleth",
+    "eyebrow": "By · Sul'arath",
+    "tabs": [
+      "Historik"
+    ],
+    "content": {
+      "Historik": "\n        <div id=\"panel-status\" class=\"status-unknown\">Ukendt</div>\n        <p id=\"panel-desc\">En by i Sul'arath-regionen. Dens rolle i det større billede er endnu ikke afsløret for gruppen.</p>"
+    },
+    "x": 31.4,
+    "y": 73.5,
+    "status": "unknown"
+  },
+  "vargheim": {
+    "name": "Vargheim",
+    "eyebrow": "By · Nordøst",
+    "tabs": [
+      "Historik"
+    ],
+    "content": {
+      "Historik": "\n        <div id=\"panel-status\" class=\"status-unknown\">Ukendt</div>\n        <p id=\"panel-desc\">En by i den nordøstlige del af Thalassor. Intet er endnu afsløret om dens forbindelser til kampagnen.</p>"
+    },
+    "x": 68.5,
+    "y": 23.9,
+    "status": "unknown"
+  },
+  "velmora": {
+    "name": "Velmora",
+    "eyebrow": "By · Amar",
+    "tabs": [
+      "Historik"
+    ],
+    "content": {
+      "Historik": "\n        <div id=\"panel-status\" class=\"status-unknown\">Ukendt</div>\n        <p id=\"panel-desc\">En by i Amar-regionen. Intet er endnu afsløret om dens rolle i kampagnens begivenheder.</p>"
+    },
+    "x": 60.6,
+    "y": 51,
+    "status": "unknown"
+  }
+};
+
+// ═══════════════════════════════════════════
+// JOURNAL — kronologiske sessionsresuméer
+// ═══════════════════════════════════════════
+// Hver entry: { id, title, date, body (HTML/tekst) }
+let JOURNAL = [
+  {
+    "id": "j1",
+    "title": "Session 1 — Ankomsten til Pilion",
+    "date": "13. august 2025",
+    "body": "<p>De forskellige karakterer ankommer til Pilion — en hyggelig lille landsby dybt inde i Røgfeldskoven. Eventyrerne er blevet tilkaldt for at undersøge den stigende uro på kontinentet Thalassor, som truer befolkningens sikkerhed og fred.</p>\n    <p>Efter de formelle høflige hilsner mødes gruppen af to lokale børn, Mel og Lia, som inviterer dem til et venskabeligt kapløb til landsbyens rådhus. Rhogu er den første til at ringe rådhusets klokke, hvormed han vinder kapløbet og en uslebne ædelsten — og efterlader samtidig en lille fordybning i Pilions byklokke til evigt minde om heltenes ankomst.</p>\n    <p>Efter løbet møder eventyrerne byens rådsmand, Svend Sværdfisk. Svend udleverer skødet til den gamle kirke og forklarer, at Det Sorte Tårn, som længe har stået i Pilion, for nylig er blevet en kilde til uro i byen. Landsbyboerne undgår tårnet, og Svend beder heltene om at undersøge dette \"blødende sår\". Selise vinder Svends tiltro og inviteres til at komme forbi til en samtale senere.</p>\n    <p>Sessionen afsluttes med information om nogle indbyggere i Pilion, som hver især kan hjælpe heltene på vej: den lokale druide Branric, de tre dværge, en lille grøn mystisk mand som skal \"opleves\", en tilbagetrukket magiker ved navn Marlon, og byens kromutter Gurli. Sessionen slutter med en stemning af forventning til heltenes næste skridt i mødet med beboerne i Pilion.</p>"
+  },
+  {
+    "id": "j2",
+    "title": "Session 2 — Firbenene og det vrede træ",
+    "date": "27. august 2025",
+    "body": "<p>Heltene drøfter deres videre færd: skal de udforske deres nye hjem eller søge information? De vælger kroen, Mos og Mjød, hvor den gæstfrie Gurli byder dem velkommen med lokalt øl og simple, men ærlige, ord. Hun fortæller, at Det Sorte Tårn angiveligt engang var hvidt, og råder heltene til at samle flere informationer blandt byens folk, inden de nærmer sig. Hun understreger desuden, at heltene skal komme tilbage til kroen, når truslen fra det sorte tårn er væk.</p>\n    <p>På vej til druiden Branric bliver gruppen overrasket af tre kæmpestore firben, som stjæler Fortunas stav og Sylvaris' notesbog. En dramatisk kamp bryder ud, da et træ pludselig beslutter sig for at straffe heltene for krænkelse af den private ejendomsret. Branric rekrutteres imidlertid hurtigt af Rhogu, som vælger at sætte ild til husets tag. Flammerne kvæles, og den klodsede druide undskylder mange gange for sine venners adfærd og tilbyder heltene fem magiske agern, en kop te og husly. Han bekræfter, at tårnet udgør en unaturlig trussel mod naturen, men kender ikke dets oprindelse.</p>\n    <p>Både Gurli og Branric viser sig at være vigtige allierede: den ene som byens pragmatiske samlingspunkt, den anden med kendskab til den lokale skov Røgfel som omgiver Pilion. Gruppens forskellige personligheder og motivationer er så småt begyndt at træde mere tydeligt frem — nogle søger viden og diplomati, nogle forsøger at afdække byens intentioner, og andre lader sig blot følge med strømmen.</p>"
+  },
+  {
+    "id": "j3",
+    "title": "Session 3 — Shauns balsal",
+    "date": "10. september 2025",
+    "body": "<p>Heltene nærmer sig afslutningen på deres første dag i Pilion. De har løbet om kap med Mel og Lia, snakket med rådsmand Svend og beundret hans sværd, udbragt en skål i kromutter Gurlis selskab, og krydset klinger med en fornærmet teenage treant. Udenfor druiden Branrics hytte gjorde de holdt og overvejede deres muligheder. Beslutningen faldt på tårnet.</p>\n    <p>På afstand så de en mørk monolit, glat og uindbydende — ingen døre, ingen vinduer, kun en sort stenflade og unaturligt velplejet græs. Sylvaris knælede undersøgende og mærkede magien i jorden, mens Fortuna, en kende mere utålmodig, sendte et lyn mod muren. Tårnet tog imod slaget uden reaktion, men svarede igen med et elektrisk stød, da Fortuna prøvede at røre murværket. Det blev Selise, der fandt vejen ind. Med troens ro og hjertets renhed lagde hun sin hånd mod muren. Blå tråde af lys snoede sig op ad hendes arm, og en varm flamme blev tændt i hendes bryst. Stenene begyndte at flytte sig, én for én, og afslørede en åbning til en mørk stenkælder.</p>\n    <p>I stedet søgte heltene Shaun — den grønne mand, som byens folk havde nævnt med både frygt og fascination. Hans hus lignede mest et hundehus dækket af mos og kløver, med en regnbue som tag. Men da de trådte indenfor, åbnede der sig en balsal i evig forvandling — fyldt med møbler, billeder og blomster i alle regnbuens farver. Shaun selv var lille, rødskægget og klædt i grønt, med en piberygende latter og et smil, der både lokkede og irriterede. Han kaldte sig skæbnens spøgefugl og søn af gudinden Tymora. Fortuna rakte ud med sin magi og mærkede en genklang — en guddommelig gnist, som ikke kunne benægtes.</p>\n    <p>Shaun tilbød sin hjælp, men kun hvis de gik med til at underholde ham. Med et knips forsvandt balsalen, og gruppen befandt sig pludseligt i et kammer, hvor et bassin med piratfisk spærrede vejen. I fællesskab knækkede de koden, og en uskyldig kasse foldede sig ud til en båd. Rhogu og Selise greb årene, mens Fortuna og Sylvaris balancerede — der var kun plads til fire. Ister fandt imidlertid sin egen vej, og med ynde og styrke løb han langs væggen som en skygge i bevægelse, indtil hans fødder let og elegant ramte stenene på den modsatte bred.</p>\n    <p>Prøven var bestået. Shaun havde fået sin underholdning, og gruppen stod nu med et nysmedet bånd til den spøgefulde og sære lille grønne mand.</p>"
+  },
+  {
+    "id": "j4",
+    "title": "Session 4 — Hemmeligheden i sakristiet",
+    "date": "24. september 2025",
+    "body": "<p>Efter en første dag med kapløb, et goddag til rådsmand Svend og en besynderlig velkomst hos druiden Branric, startede denne session med morgengry over Pilions tage. Den første nat forløb begivenhedsfrit, fraset Selise, som i drømme fik besøg af en genkendelig stemme, der hviskede om hemmeligheder under stengulvet, hvor hun tilbragte natten sammen med Rhogu.</p>\n    <p>Gruppen henvendte sig til kromutter Gurli og spurgte ind til præsten Orin, den forsvundne vogter af kirken. Gurli fortalte at Orin var vellidt af folk i byen, men at han for ca. 12 måneder siden blev opslugt af studier om Det Sorte Tårn — en besættelse, der endte med hans forsvinden. Gurli pegede desuden i retning af rådsmand Svend Sværdfisk, skulle de have flere spørgsmål til Orin.</p>\n    <p>Samtalen drejede sig hen imod missionen. De mindedes den mystiske prøvelse ved tårnet, hvor Selise med sin rene sjæl åbnede en skjult passage til tårnets indre, og de besluttede sig for at gå mod de tre dværgebrødre — Håvard, Torbjørn og Sigurd. De arbejdssomme dværge var gæstfrie og bekræftede hvad gruppen allerede vidste om Det Sorte Tårn. De tilbød også at begynde små reparationer i kirken mod en rimelig betaling, og større ombygninger lod sig også gøre.</p>\n    <p>Med dværgenes hjælp fandt gruppen en hemmelig dør bag alteret til kirkens sakristi. Her fandt de den forsvundne præst Orins notesbog. Ved afkodning af en magisk illusion afsløredes nedgangen til et bagre lokale i kirkens krypt. Centralt i denne krypt befinder sig en læsepult i sten med tydelige afmærkninger fra en stor og, at dømme efter placeringen, særdeles vigtig bog, som nu er blevet fjernet. Rhogu gik beslutsomt mod den ene af to sarkofager bagerst i krypten. Lyden af sten mod sten fyldte rummet, da Rhogu skubbede til låget, og to grønne flammende øjne blussede til live.</p>"
+  },
+  {
+    "id": "j5",
+    "title": "Session 5 — Kryptens udøde",
+    "date": "15. oktober 2025",
+    "body": "<p>De sene aftentimer lægger sig tungt over Pilion. I kirken har gruppen fundet en skjult åbning til kryptens bagerste del. Centralt i rummet rejser sig et stenalter, hvorpå en stor og vigtig bog er blevet fjernet. Rhogu løfter låget på en sarkofag bag alteret. I næste øjeblik flyver låget af og rammer ham, så han mister pusten. To grønne flammende øjne tændes i mørket. Et skelet rejser sig, bevæbnet med et brændende septer. Et andet låg sprænges af, og endnu et udødt flammende væsen melder sin ankomst. Rhogu samler sig, trækker vejret dybt — og kampen bryder ud.</p>\n    <p>Fortuna bliver et slør af lys og tåge, kroppen halvt gennemsigtig, modstandsdygtig mod slag. Selise hæver sit sværd og lader hellig kraft strømme ud fra sig. Ister glider lydløst mellem søjlerne, to knive rammer plet, og så — tvivl, frygt. Sylvaris væver sin magi og forvandles til en brølende tiger, mens bølger af udøde vælter frem gennem murens sprækker. Ud af Rhogus mund springer et lyn, der kaster et helt felt af skeletter til jorden. Fortuna lukker øjnene og omfavnes af en bølge af energi, der dræner de døde og fylder hende selv med liv.</p>\n    <p>Stanken af brændte ben og den langsomme lyd af knogler, der falder fra hinanden, fylder rummet. Da stilheden vender tilbage, står gruppen blandt resterne af en ondskab som synes at være besejret.</p>\n    <p>Ved gennemsøgning af krypten finder Ister guldmønter mellem de faldne. Blandt de hellige genstande i kryptens kiste finder Selise en lille gylden broche, hvor magien sitrer som varm luft. Under stenalteret lokaliserer Sylvaris en tryllestav som ligeledes bobler af ukendt magi.</p>\n    <p>Gruppen vender sig mod de tre dværge — Håvard, Torbjørn og Sigurd — som kom dem til undsætning, men kunne hurtigt konstatere, at hjælpen ikke var nødvendig. Efter kampen fortæller de, at præsten Orin var en venlig mand, men at han ændrede sig, før han forsvandt. Han talte ikke længere med nogen, undgik byen og isolerede sig selv i kirken. Dværgene taler kromutter Gurlis sag og forsikrer gruppen om, at hun er til at stole på.</p>\n    <p>Anden dag i Pilion går så småt på hæld. Og mens mørket lægger sig over byen, vandrer deres tanker. Fraset byens isolerede magiker, Marlon, har de sagt goddag til byens folk. Det Sorte Tårn kalder i det fjerne — stadig uden dør, stadig uden svar, men tættere på end nogensinde før.</p>"
+  },
+  {
+    "id": "j6",
+    "title": "Session 6 — Dværgenes værksted",
+    "date": "22. oktober 2025",
+    "body": "<p>Gruppen er nået til tredje dagen i Pilion, hvor deres nye tilværelse indtil videre primært er gået med at gøre sig bekendte blandt byens indbyggere: Lia og Mel, to legesyge børn som mystisk er kommet i besiddelse af en værdifuld uslebne diamant; Svend Sværdfisk, byens rådsmand; Branric Barkhvisker, en stammende, lettere forvirret og klodset druide med en hårdtslående kompagnon i sin forhave; Gurli Veldt, kromutter på Mos og Mjød som, trods initiel skepsis, synes at være en allieret; Shaun, et særpræget og muntert lille væsen med en noget ejendommelig forhistorie; de tre dværgebrødre Håvard, Sigurd og Torbjørn, som har hjulpet med at afdække kirkens hemmeligheder og tilbudt at hjælpe med restaureringen heraf; og Orin, den forsvundne præst som synes at have haft en uvis forbindelse til de mytiske hændelser i Pilion.</p>\n    <p>Gruppen havde erhvervet sig en kiste indeholdende genstande i sølv og guld til en værdi af ca. 500 guld. De har sovet i kirken og gennem drømme modtaget forvisning om, at den onde tåge omkring stedet er fordampet. De har rystet hænder med dværgene om reparation af kirken, inklusiv udbygning med et køkken til forberedelse af større måltider, en smedje med de nødvendige redskaber til produktion af våben og rustninger, samt et Arkanumkontor (Arcane Study) til produktion af bøger og magiske genstande.</p>\n    <p>Efter et hæderligt forsøg på, med de mest basale fornødenheder, at bage en håndfuld småkager, bevæger gruppen sig nu mod tårnet tilhørende den lokale magiker, Marlon. Fra deres residens i den nordlige del af Pilion har de bevæget sig sydpå gennem byen og står nu foran et sekskantet tårn, hvor hovedindgangen flankeres af to store stenfigurer formet efter, hvad de formoder, må være tårnets indehaver. På dørmåtten foran dem står der med store, uvenlige bogstaver: \"SKRUB AF!\"</p>"
+  },
+  {
+    "id": "j7",
+    "title": "Session 7 — Marlons gemakker",
+    "date": "5. november 2025",
+    "body": "<p>En naturforskrækket druide, en overdrevent ubekymret ungmø, en blåfarvet måske-sorcerer-måske-paladin-måske-warlock, en psykisk ustabil madfikseret tyveknægt, og en påfaldende woke warlock tog sidste gang kampen op mod en lettere arrogant halfling wizard med storhedsvanvid.</p>\n    <p>En muligvis helt almindelig dag i deres nye tilværelser, hvor magiens og fantasiens folder bølger uden ende mod horisonten. Gruppen har været gennem Pilion, hilst på, gjort sig nye venner og bekendtskaber — alt i alt et rimeligt bondesamfund med nogle ejendommelige personligheder.</p>\n    <p>Nu står de med sænkede skuldre i Marlons private gemakker. I midten af rummet bølger lyset uafbrudt opad og forvandles til en magisk nattehimmel af funklende stjerner og kosmisk tåge. Illusionens slør er faldet, gaver er blevet uddelt. Deres tanker drages på ny mod den opgave som samlede dem: det mystiske sorte tårn, som byens indbyggere af ubegribelig årsag øjensynligt har affundet sig med. På vejen ud er de faldet i snak med Marlon, som dog efterhånden har opbrugt det mindre reservoir af gæstfrihed han havde i sig.</p>"
+  },
+  {
+    "id": "j8",
+    "title": "Session 8 — Tilbage til Pilion",
+    "date": "3. december 2025",
+    "body": "<p>I Marlons private gemakker hang gløden fra den kosmiske himmel, som Marlon havde fremmanet, stadig over gruppen efter kampen mod den skeletagtige sky. På diskret, men teatralsk vis lod Marlon dem vide, at deres velkomst var ved at være udløbet. Gruppen besluttede derfor at forlade tårnet og vende tilbage til Pilion for at gøre sig klar til næste skridt af eventyret.</p>\n    <p>Første stop blev Mos og Mjød, hvor Gurli fyldte deres maver, mens hun berettede om et ærinde i Røgfeldskoven, som hun gerne så dem behjælpelige med. Hun viste dem den ene del af et par Sending Stones som belønning — en attraktiv pris, der ville muliggøre kommunikation til Pilion mens de er ude på eventyr.</p>\n    <p>Herefter opsøgte gruppen Svend på rådhuset i håb om at erhverve et kort. Han var ikke i besiddelse af optegnelser over tårnet, men gav lovning på at lede efter dokumenter om geografien omkring Pilion — herunder Røgfeldskoven samt handelsveje mod øst og vest.</p>\n    <p>Gruppen besøgte Lia og Mels familie, hvor de blev inviteret indenfor i den lille, varme og spartanske hytte. Over en velbagt småkage fortalte børnene om en mærkelig grotte ved rødderne af et gammelt træ, hvor de havde fundet den uslebne diamant, som nu er i gruppens besiddelse. Mel og Lia turde ikke selv gå ind, men lovede at vise stedet efter tårnmissionen.</p>\n    <p>Over kålsuppe og friskbagt brød berettede familien om flere ting, som byens indbyggere ikke normalt taler højt om: at søvnen i Pilion er dårlig, at folk mangler deres tidligere gnist, og at noget har ændret sig, siden det hvide tårn blev sort.</p>\n    <p>Mens dagens sidste solstråler gik ned, meldte gruppen sin ankomst foran Det Sorte Tårn. Selise lagde en hånd på de sorte sten, de blå magiske tråde krøb atter op ad hendes arm, og døren til tårnets indre viste sig. Én efter én trådte de over tærsklen og ind — i mørket.</p>"
+  },
+  {
+    "id": "j9",
+    "title": "Session 9 — Mimics i mørket",
+    "date": "17. december 2025",
+    "body": "<p>Heltene trådte ind i Det Sorte Tårn, og døren lukkede sig langsomt bag dem. Indenfor fandt de et stort, cirkulært rum af sort sten. Luften var tung og stillestående, som om intet havde bevæget sig der i meget lang tid. I hvert hjørne brændte fakler, der viste sig at være magiske og ikke nyligt tændte. Sylvaris kastede detect magic og bekræftede, at faklerne var de eneste umiddelbare magiske genstande. Tre reb hang ned fra loftet og virkede umiddelbart solide — indtil Rhogu tog fat i et af dem.</p>\n    <p>Rebene viste sig at være levende. Med en hvæsende lyd rullede de sig sammen, og tre massive kister styrtede ned i rummet. Deres låg sprang op i frådende gab fyldt med tænder. Det gik hurtigt op for heltene, at de stod over for mimics. Kampen blev kaotisk. Kisterne angreb fra flere sider, og både tønder og kasser i rummet viste sig at være forklædte væsner.</p>\n    <p>Rhogu blev grebet, bidt — og slugt hel af en af kisterne, fanget i mørke, slim og ætsende mavesyre. Indefra formåede han dog at holde sig i live, mens resten af gruppen desperat forsøgte at få ham fri. Selise holdt fronten med magiske sværdslag og beskyttende skjolde, mens Sylvaris fremmanede et bestialsk åndedyr til kamp og støttede gruppen med magi. Ister kæmpede fra skyggerne og undveg gentagne angreb, mens Fortuna brugte voldsom og ukontrolleret magi til at sprænge og smelte modstanderne én efter én.</p>\n    <p>I et kritisk øjeblik lykkedes det Selise at tvinge kisten til at åbne sig med magi, netop længe nok til, at Fortuna kunne gribe Rhogu og teleportere ham i sikkerhed i et brag af torden. Eksplosionen sårede både fjender og allierede, men vendte kampens momentum. Efterhånden faldt mimics én for én — smeltede sammen til uformelige masser af dødt væv.</p>\n    <p>Da stilheden igen sænkede sig over rummet, stod heltene sårede, forpustede, men i live. De befandt sig stadig dybt inde i Det Sorte Tårn, med flere hemmeligheder foran sig — og nu med visheden om, at selv de mest uskyldige genstande herinde kunne være dødelige.</p>"
+  },
+  {
+    "id": "j10",
+    "title": "Session 10 — Gudernes prøvelser",
+    "date": "7. januar 2026",
+    "body": "<p>Anden etage i Det Sorte Tårn afslørede en balkon hvorfra statuer af forskellige guder vågede over heltenes videre færd. Uden synlig trappe eller dør videre op i tårnet stod gruppen nu over for en prøvelse.</p>\n    <p>Tymora, Heldets Gudinde: Selise river en mønt fri af Tymoras hånd — den forvandles til platinum, og Fortuna lader skæbnen bestemme. Deneir, Den Første Skriver: en tyk bog hvilende i hans arme. Sylvaris lader sin magi sive ned i bogens sider. Bane, Krigstyrannen: tilsyneladende tilfreds med Rhogus offer — en pris han endnu ikke kender i sit fulde. Ilmater, Gud af Lidelse og Udholdenhed: Sylvaris må ofre sit blod for at tilfredsstille guden. En énarmet kriger lægger arm med Selise — og taber.</p>\n    <p>Efter prøvelserne høres en dyb rumlen, og en spiraltrappe baner sig vej gennem loftet. Fortuna, Sylvaris, Rhogu, Selise og Ister fortsætter deres mission — opad.</p>"
+  },
+  {
+    "id": "j11",
+    "title": "Session 11 — Edderkopperne og biblioteket",
+    "date": "14. januar 2026",
+    "body": "<p>Rejsen fortsatte dybt inde i Det Sorte Tårn i Pilion, hvor heltene stod over for udfordringer, der testede både deres kløgt og deres sjæle. Eventyret startede i et rum formet af sten, hvor en balkon løb langs kanten, og statuer af guder vogtede over rummets hemmeligheder. Selise var den første til at handle, da hun dristigt rev en mønt fri fra Tymoras hånd; til alles overraskelse forvandlede metallet sig til platin, som hun gav videre til Fortuna.</p>\n    <p>Ved at løse de andre statuers gåder — fra Sylvaris' ofring af eget blod til Isters smertefulde drømmesyn og Rhogus konfrontation med krigstyranen Bane — blev en mekanisk lyd udløst. En trappe åbnede sig og førte gruppen videre op i tårnets mørke, ind i et enormt, støvet bibliotek, hvor bøger dækkede væggene fra gulv til loft. Her mærkede de hurtigt, at de ikke var alene.</p>\n    <p>Fra skyggerne i det høje loft kravlede en massiv, blågrøn kæmpeedderkop frem med lysende øjne. Gennem en telepatisk visken afslørede væsenet, at det og dets artsfæller var flygtet fra \"det onde øje\" i Røgfeldskoven og nu var fanget i tårnet, præcis som heltene selv. En skrøbelig alliance blev indgået: edderkopperne lod gruppen passere mod, at de hver især efterlod en genstand af stor personlig værdi som pant. Edderkoppernes leder bad gruppen om at genfinde dem i den vestlige del af Røgfel efter tårnets prøvelser.</p>\n    <p>Under en kort hvile i bibliotekets støv dykkede Sylvaris ned i de gamle skrifter. Han fandt tre bemærkelsesværdige bøger: et stjernekort (Astra et Umbra), beretningen om en gal kejsers sidste tanker, samt en skræmmende bog ved navn De Bortrejstes Testamente. Da Sylvaris åbnede testamentet, så han sit eget navn skrevet med blødende blæk, og da han viste bogen til Fortuna, dukkede hendes navn også op på de ellers tomme sider. Han fandt desuden en elegant fjederpen af et ukendt, glødende metal.</p>\n    <p>Da gruppen nåede næste etage, mødte de et cirkulært rum beklædt med sorte mursten. Midt i rummet stod fem slukkede stearinlys i hver sin runecirkel foran et stort, magisk spejl. Rhogu meldte sig først og blev kastet ind i en række voldsomme og traumatiske visioner. Han så først sig selv på en blodig slagmark, hånet af en velkendt ånd af torden og lyn. Derefter skiftede synet til en fremtid, hvor han som en gammel mand lagde sin egen hjemby i aske med guddommelige lyn. Til sidst så han Bahamuts tempel i ruiner, mens hans mentor anklagede ham for at have svoret troskab til den forkerte gud. Rhogu holdt stand i cirklen, indtil runerne skiftede farve til en vedblivende blå glød. Med en blanding af frygt og beslutsomhed trådte Fortuna ind i den næste cirkel for at se, hvad spejlet ville afsløre om hendes indre mørke.</p>"
+  },
+  {
+    "id": "j12",
+    "title": "Session 12 — Spejlets dybeste frygt",
+    "date": "28. januar 2026",
+    "body": "<p>Rejsen gennem Det Sorte Tårn har været magisk og dyster. På etagen lige under, har gruppen netop måttet konfrontere deres inderste frygt og fortid gennem et magisk forvrænget spejl.</p>\n    <p>Rhogu blev konfronteret med død og ødelæggelse fra hans egne hænder. Fortuna fik en drøm om hendes døende mor, Maria, der anklager hende for at have stjålet glæden i sit liv — og en mystisk sort mønt i sin lomme, hvis magi endnu ikke helt er klarlagt. Ister fik et glimt af sin fortid med banden \"De 11 Fingre\" og en person ved navn Tommel. Selise mødte rollen som en nådesløs bøddel — en flamme-kronet tyran, der hersker gennem frygt, og fire sorte hjerter på sit sværd, hvoraf det ene blev overstreget med et rødt kryds, en dyster nedtælling hun endnu ikke kender betydningen af. Sylvaris var tilsyneladende \"fanget\" i en fredelig skovscene med sin far.</p>\n    <p>Da alle fem lys brændte, manifesterede et symbol sig i spejlet: en sort sol over en åben bog — det samme tegn, som Sylvaris tidligere havde set i præsten Orins dagbog. En dyb, ond stemme hånede gruppen gennem deres sind og proklamerede, at deres nysgerrige præst allerede var langt foran dem, og at mørkets sag vandt frem i hele landet. Derefter splintredes spejlet i tusind stykker, og en spiraltrappe løftede sig fra gulvet.</p>\n    <p>Blandt glasskårene fandt Rhogu og Sylvaris to magiske håndspejle, der viste sig at være visuelt forbundne. Gruppen steg op ad trappen og stod pludselig i en uendelig ørken af hvide sandklitter. Her mødte de en gigantisk sandskulptur formet som en slange, hvorpå en smuk kvinde i hvide klæder stod. Hun nåede kun at sige én sætning, et råb om hjælp, før mørket tog hende — en skygge kvælte hendes pupiller, hun transformerede til en stor hvid slange med regnbuefarvede vinger — og angreb.</p>"
+  },
+  {
+    "id": "j13",
+    "title": "Session 13 — Slangen i den hvide ørken",
+    "date": "4. februar 2026",
+    "body": "<p>Tårnets øverste etage. En hvid ørken så langt øjet rækker — i slående kontrast til de tidligere omgivelser. Efter at have passeret gennem en mærkelig modstand for enden af spiraltrappen, befandt gruppen sig i en uendelig ørken af hvide sandklitter under en brændende sol. Her mødte de en smuk kvinde i hvide klæder på toppen af en gigantisk sandskulptur formet som en slange. Hun nåede lige at råbe \"Hjælp mig\", før mørket overmandede hende, og hun forvandlede sig til en stor hvid hugorm med regnbuefarvede vinger.</p>\n    <p>Kampen brød ud mod både den bevingede slange og grupper af mindre slanger, der brød frem fra sandet. Samtidig viste den enorme sandskulptur sig at være aktiv og angreb gruppen med jævne mellemrum. De blev mødt af skarpe hugtænder og søvndyssende magi. Fortuna og Selise blev lullet i en magisk søvn, men blev hurtigt vækket af Sylvaris.</p>\n    <p>Fortuna oplevede flere vilde magiske udbrud. Hun blev kortvarigt transporteret til The Astral Plane — svævende i en rumtåge kunne hun skimte klipper og civilisation i det fjerne. Den mystiske sorte mønt i Fortunas lomme viste sig at være en byrde, da den blev brandvarm og tvang hende til at rulle med disadvantage.</p>\n    <p>Ister blev fanget af den bevingede slanges krop, men Fortuna vævede magien ind i hendes stemme, og med ordene \"Slip ham!\" tvang hun slangen til kortvarigt at adlyde. Rhogu aktiverede sin Draconic Flight, hvilket lod ham stige til vejrs og angribe med flammer fra sin mund og magi formet som kraftige lyn. Sylvaris forvandlede sig til en brun bjørn og udfordrede slangerne i nærkamp.</p>\n    <p>Kampen nærmer sig sit højdepunkt, mens den store sandskulptur på ny sendte hvislende projektiler mod Selise, Ister og Sylvaris.</p>"
+  },
+  {
+    "id": "j14",
+    "title": "Session 14 — Den hvide ørken",
+    "date": "4. marts 2026",
+    "body": "<p>Solen hang som et hvidglødende øje over de uendelige sandklitter, da selskabet trådte ud af Det Sorte Tårns kvælende mørke. Overgangen var som et fysisk slag; luften i den hvide ørken var knastør, og den magiske modstand, de havde mærket på spiraltrappen, føltes nu som en fjern drøm. Bag dem var trappen forsvundet, og foran dem rejste en gigantisk sandskulptur sig. På toppen af skulpturen stod en kvinde i hvide klæder. Hendes stemme var knap nok en hvisken, før mørket bag hendes pupiller opslugte alt lys. \"Hjælp mig!\" nåede hun at udbryde, før hendes krop vred sig i smerte og transformerede sig til en enorm hvid hugorm med vinger, der glimtede i regnbuens farver.</p>\n    <p>Kampen brød ud med en brutalitet, der testede deres inderste væsen. Sylvaris, i skikkelse af en mægtig brun bjørn, kastede sig mod de mindre slanger, der brød frem fra det hvide sand. Da bjørneformen kollapsede og efterlod ham bevidstløs i sandet, var det Selise, der med guddommelig kraft i hænderne bragte ham tilbage fra dødens tærskel.</p>\n    <p>Fortuna kæmpede ikke kun mod slangerne, men mod sin egen uforudsigelige magi. Hendes magi viklede virkeligheden i knuder, og hun blev kastet gennem The Astral Plane og tilbage igen, hvorefter hun i et øjeblik af rent kaos vævede en usynlig kappe omkring sine venner, så de forsvandt for fjendens blik.</p>\n    <p>Rhogu, der svævede over slagmarken på sine drakoniske vinger, følte en fremmed vrede ulme. Netop som den bevingede slange bukkede under for Fortunas magi og dalede ned mod sandet for at genvinde sin menneskelige form, knækkede noget i Rhogu. I et anfald af brutalitet vendte han sin magi mod sine egne. Et magisk angreb flængede luften og ramte Selise med en voldsom kraft. \"Rhogu, hvad gør du?!\" lød det chokeret, før Selise svarede igen med et modangreb.</p>\n    <p>Da støvet og de magiske lyn endelig lagde sig, herskede en tung, isnende stilhed i ørkenen. Den hvide kvinde lå bevidstløs i sandet, og Rhogu faldt på knæ, rystet og med bøn i stemmen.</p>"
+  },
+  {
+    "id": "j15",
+    "title": "Session 15 — Elli, tårnets vogter",
+    "date": "11. marts 2026",
+    "body": "<p>Stilheden i den hvide ørken var tungere end kampens larm, da Rhogu faldt på knæ, rystet af den dæmoniske vrede, som krigsguden Bane havde plantet i hans sjæl.</p>\n    <p>Langsomt vågnede den smukke kvinde på sandslangens hoved. Sylvaris genkendte hende gennem gamle skrifter som et himmelsk væsen, en legemliggørelse af profetier, som i sin sande form bærer udseendet af en stor bevinget hugorm. Hun præsenterede sig som Elli, tårnets sande vogter, skabt af lysets herre, Pelor, for århundreder siden — sat i verden for at bevogte et magisk fokuspunkt i Pilion. Efter hundrede års fængsel under en ansigtsløs ondskab tilbød Elli at rense én af de tre forbandelser, som hviler over gruppen efter rejsen gennem tårnet: Rhogus ukontrollerbare blodrus, den sorte mønt i lommen på Fortuna, eller brændemærkerne indridset i Selises sværd.</p>\n    <p>Gruppen valgte i fællesskab at befri Rhogu, og de så til, mens en boble af rent lys fordrev krigsgudens vrede fra hans krop. Med en bølge af sin hånd opløste Elli den hvide ørkens illusion, og sandet forsvandt som støv i vinden. Pludselig stod de tilbage i tårnets indre; de sorte sten væk, erstattet af skinnende, hvid marmor. Som tak for deres heltemod skænkede Elli dem en gylden halskæde (Selise), gyldne armbeskyttere (Rhogu) og en magisk ring hvori der hviler en stor safir (Ister).</p>\n    <p>Da de trådte ud af tårnet og ind i Pilions gader, blev de mødt af byens borgere i shock over at se deres tårn stråle hvidt og rent i eftermiddagssolen. På Mos og Mjød blev de modtaget som helte af Gurli, der diskede op med gratis mjød, mens folkemængden skålede for deres sejr. En tung skygge er blevet løftet over Pilion — takket være dem. Midt i fejringen overleverede Gurli to Sending Stones, så de fremadrettet altid vil kunne komme i kontakt med indbyggerne i Pilion, uanset hvor i Thalassor de befinder sig.</p>\n    <p>Mel og Lia løb efter Svend Sværdfisk, og han har lovet dem et kort over landet og information om metropolen Eldoria mod vest. Kort før mørkets frembrud — trætte, mætte og en anelse berusede — bevægede gruppen sig mod deres fæstning i den gamle kirke. De er ikke længere blot de fremmede, der ankom til byen for få dage siden. De er stærkere, rigere og tættere knyttet til hinanden og Pilions indbyggere. Men en snigende byrde hviler på deres skuldre, for en ukendt ondskab kaster lange skygger over kontinentet — og nu ved den hvem de er.</p>"
+  },
+  {
+    "id": "j16",
+    "title": "Session 16 — Akt 1 overstået",
+    "date": "25. marts 2026",
+    "body": "<p>Akt 1 overstået. Fem meget forskellige skæbner ankommer til en lille landsby midt i en magisk skov: en aristokratisk naturhader, en heldig svindler, en stormbesat dragemand, en traumatiseret tyv med kul i lommen, og en paladin med en fleksibel forståelse af retfærdighed.</p>\n    <p>Gruppen startede eventyret med at vinde et kapløb over børnene Mel og Lia (medførende en permanent fordybning i Pilions klokketårn), satte ild til en druides hus i \"selvforsvar\", blev venner med en lille besynderlig grøn mand, og besluttede sig for at det nok var en dårlig idé at sende føromtalte børn først ind i det uhyggelige sorte tårn. De fandt en kirke fyldt med hemmeligheder, en forsvunden præst besat og opslugt af en mystisk bog, og en krypt med skeletter, der absolut ikke havde intentioner om at respektere privatlivets fred i deres nye hjem. Umiddelbar konklusion: noget er helt galt i Pilion.</p>\n    <p>Og så... tårnet. Det sorte tårn. Et sted hvor reb blev levende, hvor kister og tønder viste sig at have tænder, hvor et spejl kendte deres dybeste frygt og hemmeligheder. Inde i tårnet blev Rhogu spist (en kortvarig men træls oplevelse), Fortuna begyndte at bøje virkeligheden, Sylvaris dokumenterede stort som småt, Ister blev rystet i sin grundvold, og Selise mødte sine religiøse overbevisninger og brændende fokus på retfærdighed.</p>\n    <p>I toppen af tårnet befandt gruppen sig på magisk vis i en hvid ørken, hvor en guddommelig slange, i skikkelse af en smuk kvinde, inviterede til kamp i afmagt. Men forbandelsen blev brudt. De sejrede og befriede vogteren Elli fra sit fangenskab. Hun rensede Rhogu fra en forbandelse. Nu er det kun Selise og Fortuna der fortsat bærer på ar fra kampen med tårnet.</p>\n    <p>Tilbage i Pilion blev de hyldet som helte. Mjøden flød. Smilet var vendt tilbage på folks ansigter. Men under overfladen brænder en sort mønt fortsat i Fortunas lomme, Selises sværd bærer en skjult dom, noget venter i skoven, og mørket ved nu, hvem de er.</p>"
+  },
+  {
+    "id": "j17",
+    "title": "Session 17 — Pagten afsløres",
+    "date": "8. april 2026",
+    "body": "<p>Efter fejringen på kroen vendte heltene tilbage til deres fæstning i den gamle kirke, mens mørket sænkede sig over Pilion. Selvom byen festede, mødte de dværgebrødrene Håvard, Sigurd og Torbjørn, der arbejdede sent med en øl i blodet. Brødrene fremviste deres ambitiøse ekspansionsplaner, der omfattede en omvendt jordmur med vertikale haver, et hejsesystem og et underjordisk træningsrum. Mens Fortuna ivrigt ville indgå væddemål om projektets succes, forblev Selise skeptisk over for dværgenes løfter om guld og grønne skove.</p>\n    <p>Natten sænkede sig, og mens de andre sov, sad Selise ved et døende bål og blev vidne til en rift i virkeligheden, hvorfra to små imps kravlede ud. Azhiraks stemme tvang hende til at fælde dom: én imp skulle tjene hende, og én skulle dø. Selise valgte at lade sit sværd falde over den askegrå imp, hvilket resulterede i, at nummer to af de fire sorte hjerter på hendes klinge blev streget over. Den overlevende imp transformerede sig på befaling til en treøjet ravn, der nu tjener hende i skjul.</p>\n    <p>Næste morgen vågnede gruppen som level 7 — stærkere og mere sammentømrede efter nattens hvile. Over en kop kaffe delte Selise endelig sandheden om sin fortid og sin pagt med Azhirak, en ærkedjævel og tidligere dommer i underverdenen, der kræver retfærdighed gennem flammer.</p>\n    <p>Gruppen blev enige om at færdiggøre deres udeståender i Pilion, før de søger mod metropolen Eldoria mod vest. De næste ca. 10 dage i vente på den årlige høstfest. Hos rådsmanden Svend Sværdfisk modtog de et efterlængt kort over regionen, der viste vejen langs Elarien-floden og den kortere, men farligere rute gennem Røgfeldskoven. Selise formåede desuden at overtale Svend til en dyster pagt: heltene må låne hans massive sværdfisksværd, når de har hjulpet Gurli med hendes ærinde i skoven.</p>\n    <p>Morgensolen brød gennem tågen over Pilion, da heltene vågnede i deres fæstning på femte dag af deres eventyr i Pilion. Efter en kort snak med Svend gik turen til druiden Branric Barkhvisker, hvor Sylvaris på dramatisk vis snublede over en rod og væltede Branric ned fra en vakkelvoren stige. Branric delte ud af sin viden om Røgfeldskovens mærkværdige økosystem, herunder de vandrende svampe, de beskyttende mosierer og de farlige svampetrolde. Som tak for indsatsen i tårnet skænkede han dem fem magiske agern, der fungerer som helbredende eliksirer.</p>\n    <p>For at få børnene Mel og Lia til at vise vej til deres hemmelige grotte, måtte heltene først hjælpe børnene og deres mor, elveren Elda, med at høste de modne kål til den forestående høstfest. Formiddagen gik i et let humør, hvor Fortuna anførte arbejdet med muntre sømandssange, og Rhogu underholdt med historier. Isters og Selises hurtige fingre og rå styrke satte en lokal rekord i kålindsamling, anerkendt af byens indbyggere.</p>\n    <p>Ekspeditionen drog stik nord mod et stort gammelt træ, som tårnede sig op over skovens andre træer. Ved dets rødder fandt de indgangen til en fugtig, underjordisk grotte. Da de bevægede sig ind i mørket, blev de angrebet af aggressive slyngplanter, men Rhogu brændte hurtigt vejen fri. Da grotten viste sig at føre dybt ind i mørket, besluttede gruppen at sende børnene sikkert hjem — Selise måtte bruge sin imp i en succesfuld skræmmekampagne for at overbevise de modvillige børn. Sessionen sluttede ved grottens tærskel, klar til at udforske det ukendte dyb under træets rødder.</p>"
+  },
+  {
+    "id": "j18",
+    "title": "Session 18 — Gennem portalen",
+    "date": "22. april 2026",
+    "body": "<p>Sent på eftermiddagen begiver vores eventyrer sig ned i hulen under det store træ i Røgfeldskoven. Her møder og bekæmper de med ild og frost planter og svampe der gror på væggen af en lang tunnel. For enden af tunnelen møder de synet af en stor hule, med store søjler, som ser ud til at være menneskeskabt.</p>\n    <p>Fortuna og Selise bemærker en fornemmelse ved indgangen der minder om den følelse de havde i Det Sorte Tårn — som at træde ind i en boble. Der er skrevet på søjlerne på mange forskellige sprog — fragmenter, men noget der tyder på at det har været et slags handelssted — måske et knudepunkt af en art.</p>\n    <p>Efter at have udforsket rummet fortsætter vores eventyrer ud i det åbne, hvor en skov ligger imellem dem og en nedlagt ruin i det fjerne. Der er flere tegn på, at vores eventyrer befinder sig et andet sted end blot under træet i Røgfeldskoven. Sessionen ender med synet og lyden af en kæmpe owlbear og en kæmpe mammut der overrasker gruppen.</p>"
+  },
+  {
+    "id": "j19",
+    "title": "Session 19 — Mammutten og Owl Bear'en",
+    "date": "4. maj 2026",
+    "body": "<p>Mørket i Røgfeldskoven blev erstattet af et fremmed landskab, da heltene bevægede sig dybere ind i det ukendte land. Freden varede dog kun kort, da lyden af et egetræ, der blev revet op med rode, varslede ankomsten af en gigantisk Mammut. Inden gruppen kunne nå at reagere, blandede endnu et væsen sig i striden: en enorm Owl Bear, hvis skrig sendte chokbølger gennem luften.</p>\n    <p>Kampen blev kaotisk og brutal. Selise blev kastet til jorden af mammutten, mens Ister desperat forsøgte at finde dækning bag klipperne for at affyre sit trofaste pusterør. Rhogu kanaliserede sin indre storm og nedkaldte lyn og flammer, hvilket kulminerede i et ødelæggende slag med sin økse, der satte mammuttens pels i brand og sendte den i knæ. Det blev dog Ister som leverede nådesstødet med et pletskud, der fældede den store Owl Bear.</p>\n    <p>Efter kampen stod det klart for gruppen, at de ikke længere befandt sig i deres egen verden. Mens Fortuna ivrigt skar mammutbøffer ud, og Sylvaris sikrede sig værdifuld hud og fjer fra bjørneuglen, forberedte de sig på at fortsætte mod de ruiner, de kunne ane i det fjerne.</p>\n    <p>Ved foden af en gammel trappe, flankeret af forfaldne søjler, mødte de deres næste forhindring: to massive rustninger, der vågnede til dåd i det øjeblik Fortuna satte foden på plateauet. Selvom Fortuna forsøgte at kontrollere dem med magiske kommandoer, var det gruppens samlede styrke, der knuste dem. Rhogu splintrede den første rustning med en strøm af lyn, og Selise flåede hjelmen af den sidste med sit lysende greatsword.</p>\n    <p>Sessionen sluttede med en bitter påmindelse. Da Fortuna forsøgte at bruge sit held, mærkede hun den sorte mønt brænde i lommen og vende hendes fordel til uheld. I frustration kastede hun mønten efter den fjendtlige rustning, men frygten for, at forbandelsen fortsat vil følge hende, nager stadig gruppen.</p>"
+  },
+  {
+    "id": "j20",
+    "title": "Session 20 — Jerntyrene i ruinerne",
+    "date": "19. maj 2026",
+    "body": "<p>Ved foden af de glemte ruiner fortsatte heltenes søgen efter svar, men terrænet viste sig hurtigt at være lige så fjendtligt som tårnets mørke. Nysgerrigt vovede Ister sig som den første op på det næste plateau ved at klatre op ad et væltet træ. Øjeblikket efter fortrød han, idet to hvilende rustninger vågnede til dåd. Efter at have modtaget to brutale slag, der nær havde kostet ham livet, måtte en hårdt medtaget Ister flygte tilbage til gruppen med kun 4 HP tilbage.</p>\n    <p>For at undgå flere baghold sendte Sylvaris sin trofaste ugle afsted for at spejde. Gennem ugle-synet opdagede de en cirkulær struktur med et centralt springvand prydet med jern-figurer af tyre og endnu flere levende rustninger, der vogtede en mystisk kiste.</p>\n    <p>Vores helte udtænkte en snedig plan. Rhogu velsignede uglen med magisk drageånde, hvorefter den lille fugl fløj over ruinerne og systematisk tilintetgjorde otte rustninger med præcise lynnedslag fra luften. Da plateauet var sikret, rykkede gruppen frem mod kisten, som viste sig at være kilden til en ny og langt farligere prøvelse.</p>\n    <p>Da Selise forsøgte at åbne kisten med en magisk hånd, rystede jorden, og de to tyre-formede skulpturer forvandlede sig til massive levende jerntyre, der gik til angreb. Kampen blev intens og nådesløs. En af tyrene udspyede en tåget gas, der nær havde forvandlet Ister til sten, mens Rhogu kæmpede for at holde stand mod de metalliske bæster.</p>\n    <p>Sylvaris demonstrerede sin druidiske magt ved først at forvandle den ene tyr til en harmløs frø og senere transformere sig selv til en frygtindgydende Allosaurus. Selise kanaliserede sin guddommelige vrede gennem sit sværd og formåede med et kraftfuldt hug at fælde den første af de to jerntyre.</p>\n    <p>Sessionen sluttede i kampens hede, hvor den sidste jerntyr stadig raserer på plateauet og truer med at nedtrampe gruppen, før de kan nå at gøre krav på kistens indhold. Alt imens forsøgte Fortuna på bedste vis at undvige både fysisk kontakt, men også opmærksomhed det hele taget.</p>"
+  },
+  {
+    "id": "j21",
+    "title": "Session 21 — Rothiels efterladte ord",
+    "date": "3. juni 2026",
+    "body": "<p>Solen stod som indmuret i himlen over den fremmede verden — den rørte sig hverken frem eller tilbage, og ingen vidste med sikkerhed, om der overhovedet var gået en nat siden gruppen trådte ind gennem portalen under det store træ i Røgfeldskoven.</p>\n    <p>Fortuna tændte et lille magisk bål og satte en gryde over. Med hænderne ned i sit magiske krydderibælte trak hun tilfældige krydderier op og rørte dem ned i grøden. Rhogu, Selise, Sylvaris, Ister og Fortuna satte sig ned og spiste, og den varme begyndelse på dagen lagde sig som et skjold over gruppen.</p>\n    <p>Sylvaris foldede en papirsfugl og fremmanede uglen Ulla til at inspicere klippeafsatsen foran dem. Her stod en kæmpe stenstatue, knælende midt i ruinerne, med begge hænder foldet beskyttende om en velpoleret, nyolieret kiste af mørkt træ. Uglen fløj stille i cirkler, tættere og tættere. Landede foran kisten. Ingenting. Kravlede op på kisten. BANG! To kæmpe stenklapper knuste fuglen ud af luften.</p>\n    <p>Vores helte spredte deres vinger ud og nærmede sig statuen fra luften. Sylvaris foldede en sværm af papirskrager og sendte dem dalende ned over plateauet i fineste origamistil. Fortuna hidkaldte en enhjørning ud af sin ring — som lidt nedslående erklærede, at den store statue \"ikke var dens fjende\", vuggede majestætisk med manken og forsvandt igen. Rhogu sendte ild afsted mod stenmonstret fra hundrede fods højde, drageblodet knitrede i hans årer. Kampen var i gang.</p>\n    <p>Den store golem ragede fem til seks meter op i luften. Den kastede tunge kraftkugler og lagde med sikker hånd en slow-forbandelse over Sylvaris, Ister og Fortuna. Fortuna mærkede den sorte mønts ulykkebringende tyngde i de øjeblikke det gjaldt mest. Et knusende slag ramte Sylvaris og sendte ham faldende mod stenbunden. Han holdt bevidstheden, men kun lige netop. Selise dykkede ned og greb fat i ham, og Rhogu fløj til undsætning og lagde en helbredende hånd på sin faldne ven.</p>\n    <p>I forvirringen så Fortuna sin chance. Mens statuens opmærksomhed var vendt mod de andre, teleporterede hun sig direkte hen til kisten med et tordenbrag — og tog den med sig. Med kisten fjernet rasede statuen nu løs på gruppen med fornyet vrede. Selise og hendes usynlige imp hakkede med præcise hug og funklende energi. Og til sidst — da statuen vaklede — sendte Ister en velplaceret pil fra sit pusterør præcist i panden på den store vrede vogter.</p>\n    <p>Kampen var forbi. Fortuna åbnede kisten nærmest inden de andre nåede frem. 76 platinmønter glinsede i det evige sols lys. Og under mønterne: en pergamentrulle forseglet med et rødt segl, omviklet af rødder der trak sig tilbage som fingre, da forseglingen blev brudt. Ingen i gruppen kendte sproget. Symbolerne svajede og skiftede form. Sylvaris lagde sin hånd på pergamentets overflade, og med skarpt blik fremtvang han ordenes betydning:</p>\n    <p>\"Husk dette: Cirklen under træet var altid en tovejs port. Jeg tegnede den med mine egne hænder og vilje. De magiske rødder i dette land bar den. Verden bøjede sig, fordi jeg bad den om det. De kom... fra Feywild med latter og løfter, fra Sigil med spørgsmål som end ikke jeg havde svaret på, fra Shadowfell med stilhed og analyserende blikke. I mange år var dette sted et handelsmekka på tværs af alle verdener. Nu ligger alt i ruiner. Jeg skal ikke forsøge at genoprette det, der allerede er blevet til et ekko. Jeg er ikke længere den, der skabte dette sted\" — Rothiel, Archfey af transplanar handel.</p>\n    <p>Efter et møde med to sabeltigre og en stor forvrænget ulvelignende skabning nåede gruppen udgangen under det store træ. Ister nåede at plukke en giftkirtel ud af ulvens mund, og Fortuna forsøgte sig med at partere sabeltigerbøffer — med beskeden held. Røgfeldskoven viste sig i sin morgenpragt — og med sine egne farer. Sylvaris, fordybet i sine noter, snublede over en gren og maste livet ud af én af Røgfels levende svampe. Ud af ingenting trådte en svampesamurai frem med sin katana trukket. Skovens vogter ventede køligt heltenes næste træk. En hurtig tilbagetrækning undgik en unødvendig kamp.</p>\n    <p>Hjem til Pilion — dag 10, fire dage til høstfesten. Gruppen trådte ud af skoven en tidlig formiddag — tre dage siden de gik ind under træet, ifølge dværgen Sigurd. Dværgbrødrene Håvard, Sigurd og Torbjørn havde gjort fæstningen færdig: gulvbrædder, fællesbord og — til stor morskab — en hemmelig underjordisk gang direkte ind til toilettet.</p>\n    <p>Hos Gurli på Mos og Mjød ventede en halvt ulæselig kogebog, der hviskede om opskrifter med dragekød og beholderøjne. Hos Branric fik Ister sin giftkirtel vurderet med kyndig hånd — potent og brugbar. Sylvaris gik ud på markerne og mediterede, mens han bredte en stille velsignelse ud over Pilions jord — alle marker inden for en halv mil ville give dobbelt høst.</p>\n    <p>Besøg hos Sean. Fortuna havde bagt hjertegrød og småkager til lejligheden. Fortuna lagde den sorte mønt frem på bordet og forklarede sin situation: mønten ødelagde hendes forbindelse til Tymora, og hun søgte hjælp til at få forbandelsen fjernet. Sean var hendes bedste håb. Seans reaktion var øjeblikkelig og ufrivillig. Instinktive forsvarsmagier brød frem, hans hud stivnede kortvarigt — og i hans øjne stod der et glimt af noget der lignede frygt. Han kunne ikke hjælpe med forbandelsen, men han pegede gruppen videre: Eldoria ville være et forsøg værd.</p>"
+  },
+  {
+    "id": "j22",
+    "title": "Session 22 — Blodig nat på Mos og Mjød",
+    "date": "6. juni 2026 · Dag 10 i Pilion",
+    "body": "<p>Fortiden kastede pludselig lys over nutiden for Rhogu. Menageriet — organisationen i skyggerne, et af kontinentets mest magtfulde og usynlige kriminelle netværk — vidste nu hvem heltene var.</p>\n    <p>Tilbage på Mos og Mjød om aftenen spottede Ister et velkendt ansigt ved et bord i hjørnet. Tommel. Manden med den mekaniske tommelfinger. Nu sad han dér, rolig og velklædt, omgivet af mænd med hænderne under bordet. Tommel tilbød en simpel handel: tag et brev med til Eldoria — og gælden er betalt. Ister gennemskuede ham — dette var en mand der ville slå ham ihjel ved første lejlighed.</p>\n    <p>Selise, der stille var fulgt med over mod Tommels bord, havde allerede besluttet sig. Med en næsten umærkelig gestus hviskede hun en Command direkte ind i Tommels sind. Hans ansigt stivnede. Kroppen begyndte at falde. Og i samme sekund rejste syv banditter sig fra de omkringliggende borde med dragne våben.</p>\n    <p>Gurli bag baren trak to armbrøster op af ingensteds og åbnede ild. En mystisk gæst ved navn Holger, en massiv mørkhudet mand med en overdimensioneret kølle, kastede sig ind på gruppens side med et grin og nedlagde tre banditter i ét voldsomt sving. Holgers rejsekammerat, Gilbert, kæmpede også med — lidt forvirret men velvillig.</p>\n    <p>Fortuna kastede Hypnotic Pattern ind over slagsmålets centrum og fangede en håndfuld banditter i en drømmende trance. Selise fulgte op med Confusion. Rhogu trak sin greataxe og sendte Scorching Ray afsted mod de resterende.</p>\n    <p>Men Tommel — sindet for hårdt til at lade sig fange af magi — rejste sig fra gulvet med is i blikket og gik direkte efter Ister. Med knive der arbejdede metodisk og sadistisk stak han nådesløst ud efter Ister. Ister svarede med at sparke benene væk under ham og sende ham i gulvet. Fortuna greb Ister og teleporterede ham ud på gaden. Puf. Et tordenbrag og en tom stol.</p>\n    <p>Tommel stirrede på stedet hvor hans mål havde stået. Han knækkede skuldrene, rejste sig, og med en trepunktslanding ud af vinduet løb han ind i natten. Det var imidlertid ikke muligt at løbe fra Selise, som med et magisk ord fik Tommel til at vende rundt — hvorefter hun leverede det endelige dødsstød. Rhogu afsluttede med Scorching Ray mod de to resterende banditter. Holger, Gilbert og Gurli ryddede op — Gurli med en flaske som improviseret slagvåben.</p>\n    <p>Den livløse Tommel blev til en dobbeltgænger. Gruppen fandt 12 guld, 8 sølv — og to +1 knive. Og i Tommels jakke: et brev med koordinater til en butik i Eldoria.</p>\n    <p>Holger fra markerne tilbød at vogte fæstningen mens gruppen rejste. De slog til. Udmattede, men levende, begav heltegruppen sig mod deres fæstning. Mos og Mjød skal genopbygges. Høstfesten venter. Menageriet er efter Ister. Forbandelsen i Fortunas lomme kan måske løses i Eldoria. Og to +1 knive venter på en ny ejer.</p>"
+  }
+];
+// Keyword → placeId. Bruges til at fremhæve navne i journalteksten
+// og lade musen-hover pege på den rigtige pin på kortet.
+// Du kan tilføje flere aliaser her i takt med at flere NPC'er optræder.
+const JOURNAL_KEYWORDS = {
+  'pilion': 'pilion',
+  'gurli': 'pilion', 'gurli veldt': 'pilion',
+  'mos og mjød': 'pilion',
+  'svend': 'pilion', 'svend sværdfisk': 'pilion',
+  'branric': 'pilion', 'barkhvisker': 'pilion', 'branric barkhvisker': 'pilion',
+  'håvard': 'pilion', 'sigurd': 'pilion', 'torbjørn': 'pilion',
+  'marlon': 'pilion',
+  'shaun': 'pilion', 'sean': 'pilion',
+  'holker': 'pilion', 'holger': 'pilion',
+  'tommel': 'pilion',
+  'mel': 'pilion', 'lia': 'pilion', 'elda': 'pilion',
+  'orin': 'pilion',
+  'det sorte tårn': 'pilion', 'sorte tårn': 'pilion',
+  'gilbert': 'pilion',
+  'elli': 'pilion',
+  'azhirak': 'pilion', 'ashiak': 'pilion',
+  'eldoria': 'clooria', 'clooria': 'clooria',
+  'røgfeldskoven': 'portal', 'rawel': 'portal', 'rothiel': 'portal', 'det store træ': 'portal',
+  'sir\'haleth': 'sirhaleth', 'sirhaleth': 'sirhaleth',
+  'vargheim': 'vargheim',
+  'velmora': 'velmora',
+};
+
+function buildKeywordRegex(){
+  const keys = Object.keys(JOURNAL_KEYWORDS).sort((a,b)=>b.length-a.length);
+  const escaped = keys.map(k=>k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
+  return new RegExp('\\b(' + escaped.join('|') + ')\\b', 'gi');
+}
+
+// Wrap matching keywords in a journal entry's HTML with clickable/hoverable spans
+function highlightJournalText(html){
+  const regex = buildKeywordRegex();
+  // Walk text nodes only, so we don't break existing tags
+  const container = document.createElement('div');
+  container.innerHTML = html;
+  function walk(node){
+    if(node.nodeType === 3){ // text node
+      const text = node.textContent;
+      if(!regex.test(text)){ return; }
+      regex.lastIndex = 0;
+      const frag = document.createDocumentFragment();
+      let lastIndex = 0, m;
+      while((m = regex.exec(text)) !== null){
+        if(m.index > lastIndex) frag.appendChild(document.createTextNode(text.slice(lastIndex, m.index)));
+        const placeId = JOURNAL_KEYWORDS[m[0].toLowerCase()];
+        const span = document.createElement('span');
+        span.className = 'journal-link';
+        span.dataset.place = placeId;
+        span.textContent = m[0];
+        frag.appendChild(span);
+        lastIndex = m.index + m[0].length;
+      }
+      if(lastIndex < text.length) frag.appendChild(document.createTextNode(text.slice(lastIndex)));
+      node.replaceWith(frag);
+    } else if(node.nodeType === 1 && node.childNodes){
+      Array.from(node.childNodes).forEach(walk);
+    }
+  }
+  Array.from(container.childNodes).forEach(walk);
+  return container.innerHTML;
+}
+
+const wrap = document.getElementById('map-wrap');
+const inner = document.getElementById('map-inner');
+let scale=1, panX=0, panY=0, dragging=false, startX, startY, startPanX, startPanY;
+
+function clampPan(x,y){
+  const img=document.getElementById('map-img');
+  const iw=img.naturalWidth||4096, ih=img.naturalHeight||2304;
+  const minX=Math.min(0,window.innerWidth-iw*scale), minY=Math.min(0,window.innerHeight-ih*scale);
+  return {x:Math.max(minX,Math.min(0,x)), y:Math.max(minY,Math.min(0,y))};
+}
+function applyTransform(){ inner.style.transform=`translate(${panX}px,${panY}px) scale(${scale})`; }
+function getCoverScale(){
+  const img=document.getElementById('map-img');
+  const iw=img.naturalWidth||4096, ih=img.naturalHeight||2304;
+  return Math.max(window.innerWidth/iw, window.innerHeight/ih);
+}
+function zoomTo(ns,cx,cy){
+  const minS = getCoverScale();
+  ns=Math.max(minS,Math.min(3,ns));
+  const r=ns/scale; panX=cx-r*(cx-panX); panY=cy-r*(cy-panY); scale=ns;
+  const c=clampPan(panX,panY); panX=c.x; panY=c.y; applyTransform();
+}
+
+window.addEventListener('load',()=>{
+  const img=document.getElementById('map-img');
+  const init=()=>{
+    const iw=img.naturalWidth||4096, ih=img.naturalHeight||2304;
+    scale=Math.max(window.innerWidth/iw, window.innerHeight/ih);
+    panX=(window.innerWidth-iw*scale)/2; panY=(window.innerHeight-ih*scale)/2;
+    const c=clampPan(panX,panY); panX=c.x; panY=c.y; applyTransform();
+  };
+  img.complete?init():img.onload=init;
+});
+
+wrap.addEventListener('wheel',e=>{e.preventDefault();zoomTo(scale*(e.deltaY<0?1.12:0.89),e.clientX,e.clientY);},{passive:false});
+wrap.addEventListener('mousedown',e=>{if(e.target.closest('.pin')||e.target.closest('#panel'))return;dragging=true;wrap.classList.add('grabbing');startX=e.clientX;startY=e.clientY;startPanX=panX;startPanY=panY;});
+window.addEventListener('mousemove',e=>{if(!dragging)return;const c=clampPan(startPanX+e.clientX-startX,startPanY+e.clientY-startY);panX=c.x;panY=c.y;applyTransform();});
+window.addEventListener('mouseup',()=>{dragging=false;wrap.classList.remove('grabbing');});
+
+let lastDist=null;
+wrap.addEventListener('touchstart',e=>{if(e.touches.length===1){dragging=true;startX=e.touches[0].clientX;startY=e.touches[0].clientY;startPanX=panX;startPanY=panY;}},{passive:true});
+wrap.addEventListener('touchmove',e=>{if(e.touches.length===2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(lastDist)zoomTo(scale*d/lastDist,(e.touches[0].clientX+e.touches[1].clientX)/2,(e.touches[0].clientY+e.touches[1].clientY)/2);lastDist=d;return;}if(!dragging||e.touches.length!==1)return;const c=clampPan(startPanX+e.touches[0].clientX-startX,startPanY+e.touches[0].clientY-startY);panX=c.x;panY=c.y;applyTransform();},{passive:true});
+wrap.addEventListener('touchend',()=>{dragging=false;lastDist=null;});
+
+document.getElementById('btn-in').addEventListener('click',()=>zoomTo(scale*1.25,window.innerWidth/2,window.innerHeight/2));
+document.getElementById('btn-out').addEventListener('click',()=>zoomTo(scale*0.8,window.innerWidth/2,window.innerHeight/2));
+document.getElementById('btn-reset').addEventListener('click',()=>{
+  const img=document.getElementById('map-img');
+  const iw=img.naturalWidth||4096,ih=img.naturalHeight||2304;
+  scale=Math.max(window.innerWidth/iw,window.innerHeight/ih);
+  panX=(window.innerWidth-iw*scale)/2;panY=(window.innerHeight-ih*scale)/2;
+  const c=clampPan(panX,panY);panX=c.x;panY=c.y;applyTransform();
+});
+
+// ═══════════════════════════════════════════
+// PANEL & TABS
+// ═══════════════════════════════════════════
+const overlay=document.getElementById('overlay');
+const tabBar=document.getElementById('tab-bar');
+const tabContent=document.getElementById('tab-content');
+
+function openPanel(id){
+  const p=PLACES[id]; if(!p) return;
+  document.getElementById('panel-eyebrow').textContent=p.eyebrow||'Sted';
+  document.getElementById('panel-title').textContent=p.name;
+
+  // Build tabs
+  tabBar.innerHTML='';
+  tabContent.innerHTML='';
+  p.tabs.forEach((tab,i)=>{
+    const btn=document.createElement('button');
+    btn.className='tab-btn'+(i===0?' active':'');
+    btn.textContent=tab;
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      showTab(p,tab);
+    });
+    tabBar.appendChild(btn);
+  });
+  showTab(p, p.tabs[0]);
+  overlay.classList.add('open');
+  tabContent.scrollTop=0;
+}
+
+function showTab(p,tab){
+  tabContent.innerHTML=`<div class="tab-pane active">${p.content[tab]||'<p style="color:#888;font-style:italic;">Intet indhold endnu.</p>'}</div>`;
+}
+
+document.querySelectorAll('.pin').forEach(pin=>{
+  pin.addEventListener('click',e=>{e.stopPropagation();openPanel(pin.dataset.id);});
+});
+
+// ═══════════════════════════════════════════
+// SEARCH
+// ═══════════════════════════════════════════
+const searchBox = document.getElementById('search-box');
+const searchResults = document.getElementById('search-results');
+
+// Build a flat searchable index: place + tab + stripped text
+function buildSearchIndex(){
+  const index = [];
+  Object.entries(PLACES).forEach(([id, place])=>{
+    // Index the place itself
+    index.push({ placeId:id, tab:null, label:place.name, meta:place.eyebrow||'', snippet:'', haystack:(place.name+' '+(place.eyebrow||'')).toLowerCase() });
+
+    Object.entries(place.content).forEach(([tabName, html])=>{
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      const text = tmp.textContent.replace(/\s+/g,' ').trim();
+
+      // Try to find NPC / room names specifically for richer results
+      tmp.querySelectorAll('.npc-name, .bastion-room-name').forEach(el=>{
+        const name = el.textContent.trim();
+        const parent = el.closest('.npc-card, .bastion-room');
+        const descEl = parent ? parent.querySelector('.npc-desc, .bastion-room-desc') : null;
+        const roleEl = parent ? parent.querySelector('.npc-role') : null;
+        index.push({
+          placeId:id, tab:tabName, label:name,
+          meta:(roleEl?roleEl.textContent.trim():tabName)+' · '+place.name,
+          snippet: descEl ? descEl.textContent.trim().slice(0,90)+'…' : '',
+          haystack:(name+' '+(roleEl?roleEl.textContent:'')+' '+(descEl?descEl.textContent:'')).toLowerCase()
+        });
+      });
+
+      // Also index the tab/place as a fallback full-text match
+      index.push({ placeId:id, tab:tabName, label:place.name+' — '+tabName, meta:tabName, snippet:text.slice(0,90)+'…', haystack:text.toLowerCase() });
+    });
+  });
+  return index;
+}
+
+function runSearch(query){
+  query = query.trim().toLowerCase();
+  if(!query){ searchResults.classList.remove('open'); searchResults.innerHTML=''; return; }
+
+  // Rebuild index live so manually added pins/NPCs are always searchable
+  const liveIndex = buildSearchIndex();
+
+  // De-dupe by label+placeId, prioritize NPC/room matches over generic tab matches
+  const seen = new Set();
+  const matches = liveIndex.filter(item=>item.haystack.includes(query));
+  const ranked = matches.sort((a,b)=>{
+    const aSpecific = a.tab && a.meta && !a.meta.includes('—') ? 0 : 1;
+    const bSpecific = b.tab && b.meta && !b.meta.includes('—') ? 0 : 1;
+    return aSpecific - bSpecific;
+  });
+
+  const unique = [];
+  for(const m of ranked){
+    const key = m.placeId+'|'+m.label;
+    if(seen.has(key)) continue;
+    seen.add(key);
+    unique.push(m);
+    if(unique.length>=8) break;
+  }
+
+  if(unique.length===0){
+    searchResults.innerHTML = '<div id="search-empty">Ingen resultater fundet</div>';
+  } else {
+    searchResults.innerHTML = unique.map(m=>`
+      <div class="search-result" data-place="${m.placeId}" data-tab="${m.tab?m.tab.replace(/"/g,'&quot;'):''}">
+        <div class="search-result-name">${m.label}</div>
+        <div class="search-result-meta">${m.meta}</div>
+        ${m.snippet?`<div class="search-result-snippet">${m.snippet}</div>`:''}
+      </div>`).join('');
+  }
+  searchResults.classList.add('open');
+}
+
+searchBox.addEventListener('input', e=>runSearch(e.target.value));
+searchBox.addEventListener('focus', ()=>{ if(searchBox.value.trim()) searchResults.classList.add('open'); });
+
+searchResults.addEventListener('click', e=>{
+  const card = e.target.closest('.search-result');
+  if(!card) return;
+  const placeId = card.dataset.place;
+  const tab = card.dataset.tab;
+  openPanel(placeId);
+  if(tab){
+    const btns = Array.from(document.querySelectorAll('.tab-btn'));
+    const target = btns.find(b=>b.textContent===tab);
+    if(target) target.click();
+  }
+  searchResults.classList.remove('open');
+  searchBox.value='';
+});
+
+document.addEventListener('click', e=>{
+  if(!e.target.closest('#search-wrap')) searchResults.classList.remove('open');
+});
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){ searchResults.classList.remove('open'); searchBox.blur(); }
+});
+document.getElementById('panel-close').addEventListener('click',()=>overlay.classList.remove('open'));
+overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.classList.remove('open');});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')overlay.classList.remove('open');});
+document.addEventListener('keydown',e=>{if(e.key==='Escape') npcFormOverlay && npcFormOverlay.classList.remove('open');});
+
+// ═══════════════════════════════════════════
+// EDITOR
+// ═══════════════════════════════════════════
+const EDITOR_PASSWORD = 'dm2024'; // skift dette til din adgangskode
+
+let editorMode = false;
+let editingId = null;
+let editingTab = null;
+let pinIdCounter = 0;
+
+// ── Undo history ──
+const HISTORY_LIMIT = 30;
+let historyStack = [];
+
+function pushHistory(){
+  historyStack.push(JSON.stringify(PLACES));
+  if(historyStack.length > HISTORY_LIMIT) historyStack.shift();
+}
+
+function undoLast(){
+  if(historyStack.length === 0) return;
+  const prev = historyStack.pop();
+  const restored = JSON.parse(prev);
+  // Clear and repopulate PLACES in place (keep same object reference)
+  Object.keys(PLACES).forEach(k=>delete PLACES[k]);
+  Object.assign(PLACES, restored);
+  document.getElementById('ed-modal-overlay').classList.remove('open');
+  renderPins();
+}
+
+document.getElementById('ed-btn-undo').addEventListener('click', undoLast);
+document.addEventListener('keydown', e=>{
+  if(editorMode && (e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='z'){
+    e.preventDefault();
+    undoLast();
+  }
+});
+
+// ── Password ──
+const pwOverlay   = document.getElementById('pw-modal-overlay');
+const pwInput     = document.getElementById('pw-input');
+const pwError     = document.getElementById('pw-error');
+const editorLock  = document.getElementById('editor-lock');
+const editorBar   = document.getElementById('editor-bar');
+
+// SIKKERHEDSNET: tving altid redaktør-UI til lukket ved sideindlæsning, uanset hvad
+// der evt. står i den statiske HTML (fx fra en tidligere eksport taget midt i redigering).
+// Spillere skal ALDRIG se redaktøren åben, når de blot åbner siden.
+document.body.classList.remove('editor-mode');
+editorLock.textContent = '🔒';
+editorLock.classList.remove('active');
+editorBar.classList.remove('visible');
+document.getElementById('ed-modal-overlay').classList.remove('open');
+document.getElementById('pw-modal-overlay').classList.remove('open');
+document.getElementById('npc-form-overlay').classList.remove('open');
+document.getElementById('journal-form-overlay').classList.remove('open');
+editorMode = false;
+
+editorLock.addEventListener('click', ()=>{
+  if(editorMode){ exitEditor(); return; }
+  pwOverlay.classList.add('open');
+  pwInput.value=''; pwError.textContent='';
+  setTimeout(()=>pwInput.focus(),80);
+});
+
+document.getElementById('pw-submit').addEventListener('click', checkPassword);
+pwInput.addEventListener('keydown', e=>{ if(e.key==='Enter') checkPassword(); });
+document.getElementById('pw-cancel').addEventListener('click', ()=>pwOverlay.classList.remove('open'));
+
+function checkPassword(){
+  if(pwInput.value === EDITOR_PASSWORD){
+    pwOverlay.classList.remove('open');
+    enterEditor();
+  } else {
+    pwError.textContent = 'Forkert adgangskode';
+    pwInput.value='';
+    pwInput.focus();
+  }
+}
+
+function enterEditor(){
+  editorMode = true;
+  document.body.classList.add('editor-mode');
+  editorLock.textContent = '🔓';
+  editorLock.classList.add('active');
+  editorBar.classList.add('visible');
+  renderPins();
+  if(document.getElementById('journal-overlay').classList.contains('open')) renderJournal();
+}
+
+function exitEditor(){
+  editorMode = false;
+  document.body.classList.remove('editor-mode');
+  editorLock.textContent = '🔒';
+  editorLock.classList.remove('active');
+  editorBar.classList.remove('visible');
+  renderPins();
+  if(document.getElementById('journal-overlay').classList.contains('open')) renderJournal();
+}
+
+document.getElementById('ed-btn-exit').addEventListener('click', exitEditor);
+
+// ── Render pins from PLACES ──
+function renderPins(){
+  // Remove all existing pins
+  document.querySelectorAll('.pin').forEach(p=>p.remove());
+
+  Object.entries(PLACES).forEach(([id, place])=>{
+    const pin = document.createElement('div');
+    pin.className = `pin ${place.status||'unknown'}`;
+    pin.style.left = place.x+'%';
+    pin.style.top  = place.y+'%';
+    pin.dataset.id = id;
+
+    const dot = document.createElement('div');
+    dot.className = 'pin-dot';
+    const label = document.createElement('span');
+    label.className = 'pin-label';
+    label.textContent = place.name;
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'pin-delete';
+    delBtn.textContent = '×';
+    delBtn.title = 'Slet pin';
+    delBtn.addEventListener('click', e=>{
+      e.stopPropagation();
+      if(confirm(`Slet "${place.name}"?`)){ pushHistory(); delete PLACES[id]; renderPins(); }
+    });
+
+    pin.appendChild(dot);
+    pin.appendChild(label);
+    pin.appendChild(delBtn);
+
+    // Click: open panel (normal) or open editor (editor mode) — but not if it was a drag
+    let justDragged = false;
+    pin.addEventListener('click', e=>{
+      e.stopPropagation();
+      if(justDragged){ justDragged = false; return; }
+      if(editorMode){ openEditorModal(id); }
+      else { openPanel(id); }
+    });
+
+    // Drag in editor mode
+    let pinDragging = false, pdStartX, pdStartY, pdOrigLeft, pdOrigTop, historySaved = false;
+    const DRAG_THRESHOLD = 4; // px
+    pin.addEventListener('mousedown', e=>{
+      if(!editorMode) return;
+      e.stopPropagation();
+      pinDragging = true;
+      historySaved = false;
+      justDragged = false;
+      pdStartX = e.clientX; pdStartY = e.clientY;
+      pdOrigLeft = place.x; pdOrigTop = place.y;
+      const imgEl = document.getElementById('map-img');
+      const iw = imgEl.naturalWidth||4096, ih = imgEl.naturalHeight||2304;
+      function onMove(ev){
+        if(!pinDragging) return;
+        const dx = ev.clientX - pdStartX;
+        const dy = ev.clientY - pdStartY;
+        if(!historySaved && (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD)){
+          pushHistory();
+          historySaved = true;
+          justDragged = true;
+          pin.classList.add('dragging-pin');
+        }
+        if(!historySaved) return; // ignore tiny jitters, don't move yet
+        const newLeft = pdOrigLeft + (dx / (iw * scale)) * 100;
+        const newTop  = pdOrigTop  + (dy / (ih * scale)) * 100;
+        place.x = Math.max(0, Math.min(100, +newLeft.toFixed(2)));
+        place.y = Math.max(0, Math.min(100, +newTop.toFixed(2)));
+        pin.style.left = place.x + '%';
+        pin.style.top  = place.y + '%';
+      }
+      function onUp(){
+        pinDragging = false;
+        pin.classList.remove('dragging-pin');
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+      }
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    });
+
+    document.getElementById('map-inner').appendChild(pin);
+  });
+}
+
+// Right-click on map to add pin (editor mode) — left-click/drag is reserved for panning
+document.getElementById('map-wrap').addEventListener('contextmenu', e=>{
+  if(!editorMode) return;
+  e.preventDefault();
+  if(e.target.closest('.pin')) return;
+  const imgEl = document.getElementById('map-img');
+  const rect = imgEl.getBoundingClientRect();
+  const xPct = ((e.clientX - rect.left) / rect.width  * 100).toFixed(2);
+  const yPct = ((e.clientY - rect.top)  / rect.height * 100).toFixed(2);
+  const newId = 'place_' + Date.now();
+  pushHistory();
+  PLACES[newId] = {
+    name: 'Nyt sted',
+    eyebrow: 'Sted',
+    status: 'unknown',
+    x: +xPct, y: +yPct,
+    tabs: ['Historik'],
+    content: { 'Historik': '<div id="panel-status" class="status-unknown">Ukendt</div><p id="panel-desc">Beskrivelse mangler.</p>' }
+  };
+  renderPins();
+  openEditorModal(newId);
+});
+
+document.getElementById('ed-btn-add').addEventListener('click', ()=>{
+  // Add pin at center of current view
+  const imgEl = document.getElementById('map-img');
+  const rect = imgEl.getBoundingClientRect();
+  const xPct = ((window.innerWidth/2 - rect.left) / rect.width  * 100).toFixed(2);
+  const yPct = ((window.innerHeight/2 - rect.top)  / rect.height * 100).toFixed(2);
+  const newId = 'place_' + Date.now();
+  pushHistory();
+  PLACES[newId] = {
+    name: 'Nyt sted', eyebrow: 'Sted', status: 'unknown',
+    x: +xPct, y: +yPct,
+    tabs: ['Historik'],
+    content: { 'Historik': '<div id="panel-status" class="status-unknown">Ukendt</div><p id="panel-desc">Beskrivelse mangler.</p>' }
+  };
+  renderPins();
+  openEditorModal(newId);
+});
+
+// ── Editor Modal ──
+const edModalOverlay = document.getElementById('ed-modal-overlay');
+
+function openEditorModal(id){
+  editingId = id;
+  const p = PLACES[id];
+  editingTab = p.tabs[0];
+
+  document.getElementById('ed-modal-title').textContent = id.startsWith('place_') ? 'Nyt sted' : 'Rediger: ' + p.name;
+  document.getElementById('ed-name').value    = p.name;
+  document.getElementById('ed-eyebrow').value = p.eyebrow||'';
+  document.getElementById('ed-status').value  = p.status||'unknown';
+  document.getElementById('ed-tabs').value    = p.tabs.join(',');
+
+  renderEdTabBtns(p);
+  document.getElementById('ed-content').innerHTML = p.content[editingTab]||'';
+  document.getElementById('ed-content-label').textContent = `Indhold — fane: ${editingTab}`;
+  updateToolbarForTab(editingTab);
+
+  edModalOverlay.classList.add('open');
+  document.getElementById('ed-name').focus();
+}
+
+// "+ Hændelse" only makes sense on a Historik-style tab
+function updateToolbarForTab(tabName){
+  const eventBtn = document.getElementById('ed-add-event');
+  const isHistorik = /historik/i.test(tabName||'');
+  eventBtn.style.display = isHistorik ? '' : 'none';
+}
+
+function renderEdTabBtns(p){
+  const container = document.getElementById('ed-tab-btns');
+  container.innerHTML = '';
+  p.tabs.forEach(tab=>{
+    const btn = document.createElement('button');
+    btn.className = 'ed-tab-select' + (tab===editingTab?' active':'');
+    btn.textContent = tab;
+    btn.addEventListener('click', ()=>{
+      // Save current tab content before switching
+      const p2 = PLACES[editingId];
+      p2.content[editingTab] = document.getElementById('ed-content').innerHTML;
+      editingTab = tab;
+      document.getElementById('ed-content').innerHTML = p2.content[editingTab]||'';
+      document.getElementById('ed-content-label').textContent = `Indhold — fane: ${editingTab}`;
+      updateToolbarForTab(editingTab);
+      renderEdTabBtns(p2);
+    });
+    container.appendChild(btn);
+  });
+}
+
+// Auto-update tabs when tab input changes
+document.getElementById('ed-tabs').addEventListener('change', ()=>{
+  const newTabs = document.getElementById('ed-tabs').value.split(',').map(t=>t.trim()).filter(Boolean);
+  if(!newTabs.length) return;
+  const p = PLACES[editingId];
+  // Save current
+  p.content[editingTab] = document.getElementById('ed-content').innerHTML;
+  // Merge: keep old content, add new tabs blank
+  const newContent = {};
+  newTabs.forEach(t=>{ newContent[t] = p.content[t]||''; });
+  p.tabs = newTabs;
+  p.content = newContent;
+  if(!p.tabs.includes(editingTab)) editingTab = p.tabs[0];
+  document.getElementById('ed-content').innerHTML = p.content[editingTab]||'';
+  document.getElementById('ed-content-label').textContent = `Indhold — fane: ${editingTab}`;
+  updateToolbarForTab(editingTab);
+  renderEdTabBtns(p);
+});
+
+// Toolbar formatting commands
+document.querySelectorAll('.ed-tool-btn[data-cmd]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.getElementById('ed-content').focus();
+    document.execCommand(btn.dataset.cmd, false, null);
+  });
+});
+
+// Quick-insert: hændelse (session event row)
+document.getElementById('ed-add-event').addEventListener('click', ()=>{
+  const ed = document.getElementById('ed-content');
+  ed.focus();
+  const row = document.createElement('div');
+  row.className = 'ed-event-row';
+  row.innerHTML = `<span class="ed-row-label">Session — skriv sessionsnummer her</span><span>Skriv hvad der skete her...</span>`;
+  ed.appendChild(row);
+});
+
+// Quick-insert: NPC-kort via formular
+const npcFormOverlay = document.getElementById('npc-form-overlay');
+
+document.getElementById('ed-add-npc').addEventListener('click', ()=>{
+  document.getElementById('npc-f-name').value = '';
+  document.getElementById('npc-f-role').value = '';
+  document.getElementById('npc-f-desc').value = '';
+  document.getElementById('npc-f-status').value = 'npc-ally';
+  npcFormOverlay.classList.add('open');
+  setTimeout(()=>document.getElementById('npc-f-name').focus(), 80);
+});
+
+document.getElementById('npc-f-cancel').addEventListener('click', ()=>npcFormOverlay.classList.remove('open'));
+npcFormOverlay.addEventListener('click', e=>{ if(e.target===npcFormOverlay) npcFormOverlay.classList.remove('open'); });
+
+document.getElementById('npc-f-add').addEventListener('click', ()=>{
+  const name = document.getElementById('npc-f-name').value.trim() || 'Unavngivet NPC';
+  const role = document.getElementById('npc-f-role').value.trim();
+  const desc = document.getElementById('npc-f-desc').value.trim();
+  const statusClass = document.getElementById('npc-f-status').value;
+  const statusLabel = { 'npc-ally':'Allieret', 'npc-neutral':'Neutral', 'npc-mystery':'Mystisk' }[statusClass];
+
+  const card = document.createElement('div');
+  card.className = 'npc-card';
+  card.innerHTML = `
+    <div class="npc-name">${name}</div>
+    ${role ? `<div class="npc-role">${role}</div>` : ''}
+    <div class="npc-desc">${desc||'Beskrivelse mangler.'}</div>
+    <span class="npc-status ${statusClass}">${statusLabel}</span>`;
+
+  const ed = document.getElementById('ed-content');
+  ed.appendChild(card);
+  npcFormOverlay.classList.remove('open');
+  ed.focus();
+});
+
+document.getElementById('ed-save').addEventListener('click', ()=>{
+  pushHistory();
+  const p = PLACES[editingId];
+  p.name    = document.getElementById('ed-name').value.trim()||'Unavngivet';
+  p.eyebrow = document.getElementById('ed-eyebrow').value.trim();
+  p.status  = document.getElementById('ed-status').value;
+  p.content[editingTab] = document.getElementById('ed-content').innerHTML;
+  const newTabs = document.getElementById('ed-tabs').value.split(',').map(t=>t.trim()).filter(Boolean);
+  if(newTabs.length){
+    const merged = {};
+    newTabs.forEach(t=>{ merged[t] = p.content[t]||''; });
+    p.tabs = newTabs; p.content = merged;
+  }
+  edModalOverlay.classList.remove('open');
+  renderPins();
+});
+
+document.getElementById('ed-cancel').addEventListener('click', ()=>edModalOverlay.classList.remove('open'));
+
+document.getElementById('ed-delete-place').addEventListener('click', ()=>{
+  if(confirm(`Slet "${PLACES[editingId]?.name}" permanent?`)){
+    pushHistory();
+    delete PLACES[editingId];
+    edModalOverlay.classList.remove('open');
+    renderPins();
+  }
+});
+
+document.getElementById('ed-modal-overlay').addEventListener('click', e=>{
+  if(e.target===edModalOverlay) edModalOverlay.classList.remove('open');
+});
+
+// ── Migrate existing PLACES to have x/y coords ──
+// (They currently use CSS left/top on the pin elements — extract those)
+(function migratePins(){
+  document.querySelectorAll('.pin[data-id]').forEach(pin=>{
+    const id = pin.dataset.id;
+    if(PLACES[id]){
+      PLACES[id].x = parseFloat(pin.style.left)||0;
+      PLACES[id].y = parseFloat(pin.style.top)||0;
+      PLACES[id].status = [...pin.classList].find(c=>['visited','mystery','unknown'].includes(c))||'unknown';
+    }
+  });
+  // Re-render to hook up editor events properly
+  // (pins already exist in DOM from static HTML, so we do a silent pass)
+  document.querySelectorAll('.pin[data-id]').forEach(pin=>{
+    const id = pin.dataset.id;
+    const delBtn = document.createElement('button');
+    delBtn.className = 'pin-delete';
+    delBtn.textContent = '×';
+    delBtn.title = 'Slet pin';
+    delBtn.addEventListener('click', e=>{
+      e.stopPropagation();
+      if(confirm(`Slet "${PLACES[id]?.name}"?`)){ pushHistory(); delete PLACES[id]; renderPins(); }
+    });
+    pin.appendChild(delBtn);
+
+    const origClick = ()=>{ if(editorMode) openEditorModal(id); else openPanel(id); };
+    pin.replaceWith(pin.cloneNode(true)); // remove old listeners cleanly
+
+    // Re-grab and reattach
+    const freshPin = document.querySelector(`.pin[data-id="${id}"]`);
+    if(!freshPin) return;
+    const freshDel = document.createElement('button');
+    freshDel.className = 'pin-delete';
+    freshDel.textContent = '×';
+    freshDel.addEventListener('click', e=>{ e.stopPropagation(); if(confirm(`Slet "${PLACES[id]?.name}"?`)){ pushHistory(); delete PLACES[id]; renderPins(); } });
+    freshPin.appendChild(freshDel);
+    let mpJustDragged = false;
+    freshPin.addEventListener('click', e=>{ e.stopPropagation(); if(mpJustDragged){ mpJustDragged=false; return; } if(editorMode) openEditorModal(id); else openPanel(id); });
+
+    let pinDragging=false, pdStartX, pdStartY, pdOrigLeft, pdOrigTop, mpHistorySaved=false;
+    const MP_DRAG_THRESHOLD = 4;
+    freshPin.addEventListener('mousedown', e=>{
+      if(!editorMode) return;
+      e.stopPropagation();
+      pinDragging=true; mpHistorySaved=false; mpJustDragged=false;
+      pdStartX=e.clientX; pdStartY=e.clientY;
+      pdOrigLeft=PLACES[id].x; pdOrigTop=PLACES[id].y;
+      const imgEl=document.getElementById('map-img');
+      const iw=imgEl.naturalWidth||4096, ih=imgEl.naturalHeight||2304;
+      function onMove(ev){
+        const dx=ev.clientX-pdStartX, dy=ev.clientY-pdStartY;
+        if(!mpHistorySaved && (Math.abs(dx)>MP_DRAG_THRESHOLD || Math.abs(dy)>MP_DRAG_THRESHOLD)){
+          pushHistory(); mpHistorySaved=true; mpJustDragged=true;
+          freshPin.classList.add('dragging-pin');
+        }
+        if(!mpHistorySaved) return;
+        PLACES[id].x=Math.max(0,Math.min(100,+(pdOrigLeft+(dx/(iw*scale)*100)).toFixed(2)));
+        PLACES[id].y=Math.max(0,Math.min(100,+(pdOrigTop +(dy/(ih*scale)*100)).toFixed(2)));
+        freshPin.style.left=PLACES[id].x+'%';
+        freshPin.style.top =PLACES[id].y+'%';
+      }
+      function onUp(){ pinDragging=false; freshPin.classList.remove('dragging-pin'); window.removeEventListener('mousemove',onMove); window.removeEventListener('mouseup',onUp); }
+      window.addEventListener('mousemove',onMove);
+      window.addEventListener('mouseup',onUp);
+    });
+  });
+})();
+
+// ── Export HTML ──
+document.getElementById('ed-btn-export').addEventListener('click', ()=>{
+  // Serialize current PLACES and JOURNAL into a JS-safe string and inject into a copy of the page
+  const placesJson  = JSON.stringify(PLACES, null, 2);
+  const journalJson = JSON.stringify(JOURNAL, null, 2);
+
+  // IMPORTANT: don't export the live DOM as-is — it may currently be in editor mode,
+  // have modals open, or have editor-only DOM tweaks (delete buttons etc.) baked into
+  // the pins. Clone the document, strip all of that, and export a clean, closed page
+  // so other players never see the editor when they open the file.
+  const cleanDoc = document.documentElement.cloneNode(true);
+
+  cleanDoc.querySelector('body').classList.remove('editor-mode');
+
+  const lockEl = cleanDoc.querySelector('#editor-lock');
+  if(lockEl){ lockEl.textContent = '🔒'; lockEl.classList.remove('active'); }
+
+  const editorBarEl = cleanDoc.querySelector('#editor-bar');
+  if(editorBarEl) editorBarEl.classList.remove('visible');
+
+  // Close any modals/overlays that might be open
+  ['#ed-modal-overlay','#pw-modal-overlay','#npc-form-overlay','#journal-overlay','#journal-form-overlay','#overlay']
+    .forEach(sel=>{
+      const el = cleanDoc.querySelector(sel);
+      if(el) el.classList.remove('open');
+    });
+
+  // Remove editor-only DOM additions from pins (delete buttons) — they'll be
+  // regenerated correctly if the new owner ever re-enters editor mode anyway
+  cleanDoc.querySelectorAll('.pin-delete').forEach(el=>el.remove());
+
+  const currentHtml = '<!DOCTYPE html>\n' + cleanDoc.outerHTML;
+
+  // Replace the PLACES block
+  let newHtml = currentHtml.replace(
+    /const PLACES = \{[\s\S]*?\};\s*\n\n/,
+    'const PLACES = ' + placesJson + ';\n\n'
+  );
+  // Replace the JOURNAL block
+  newHtml = newHtml.replace(
+    /let JOURNAL = \[[\s\S]*?\];\s*\n/,
+    'let JOURNAL = ' + journalJson + ';\n'
+  );
+
+  const blob = new Blob([newHtml], {type:'text/html;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'index.html';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+
+// ═══════════════════════════════════════════
+// JOURNAL UI
+// ═══════════════════════════════════════════
+const journalOverlay = document.getElementById('journal-overlay');
+const journalEntries  = document.getElementById('journal-entries');
+const journalFormOverlay = document.getElementById('journal-form-overlay');
+const journalPanel = document.getElementById('journal-panel');
+const journalHeader = document.getElementById('journal-header');
+let editingJournalId = null;
+
+document.getElementById('journal-btn').addEventListener('click', ()=>{
+  renderJournal();
+  journalOverlay.classList.add('open');
+});
+document.getElementById('journal-close').addEventListener('click', ()=>journalOverlay.classList.remove('open'));
+// Bemærk: intet klik-udenfor-for-at-lukke — kortet bagved skal forblive interaktivt
+// (fx panorering), så et klik på kortet skal ikke lukke journalen ved et uheld.
+
+// ── Flytbart journal-vindue ──
+(function makeJournalDraggable(){
+  let dragging = false, startX, startY, startLeft, startTop;
+  journalHeader.addEventListener('mousedown', e=>{
+    if(e.target.closest('#journal-close')) return;
+    dragging = true;
+    journalHeader.classList.add('dragging-journal');
+    const rect = journalPanel.getBoundingClientRect();
+    startX = e.clientX; startY = e.clientY;
+    startLeft = rect.left; startTop = rect.top;
+    journalPanel.style.left = rect.left + 'px';
+    journalPanel.style.top  = rect.top + 'px';
+  });
+  window.addEventListener('mousemove', e=>{
+    if(!dragging) return;
+    const dx = e.clientX - startX, dy = e.clientY - startY;
+    let newLeft = startLeft + dx, newTop = startTop + dy;
+    const panelRect = journalPanel.getBoundingClientRect();
+    newLeft = Math.max(-panelRect.width*0.6, Math.min(window.innerWidth - panelRect.width*0.4, newLeft));
+    newTop  = Math.max(0, Math.min(window.innerHeight - 60, newTop));
+    journalPanel.style.left = newLeft + 'px';
+    journalPanel.style.top  = newTop + 'px';
+  });
+  window.addEventListener('mouseup', ()=>{
+    dragging = false;
+    journalHeader.classList.remove('dragging-journal');
+  });
+})();
+
+function renderJournal(){
+  if(JOURNAL.length === 0){
+    journalEntries.innerHTML = '<p id="journal-empty">Ingen resuméer endnu. Tilføj det første via redaktør-tilstand.</p>';
+    return;
+  }
+  journalEntries.innerHTML = JOURNAL.map(entry => `
+    <div class="journal-entry" data-jid="${entry.id}">
+      <div class="journal-entry-title">${entry.title}${editorMode ? ` <button class="ed-tool-btn journal-edit-btn" data-jid="${entry.id}" style="margin-left:8px;font-size:0.6rem;">✎ Rediger</button>`:''}</div>
+      ${entry.date ? `<div class="journal-entry-date">${entry.date}</div>` : ''}
+      <div class="journal-entry-body">${highlightJournalText(entry.body)}</div>
+    </div>
+  `).join('');
+
+  // Hook up hover/click on highlighted names → glow matching pin on map
+  journalEntries.querySelectorAll('.journal-link').forEach(span=>{
+    const placeId = span.dataset.place;
+    if(!placeId || !PLACES[placeId]) return;
+    span.addEventListener('mouseenter', ()=>highlightPinOnMap(placeId, true));
+    span.addEventListener('mouseleave', ()=>highlightPinOnMap(placeId, false));
+    span.addEventListener('click', ()=>{
+      // Pan map to the place and open its panel
+      panToPlace(placeId);
+    });
+  });
+
+  // Hook up edit buttons (editor mode only)
+  journalEntries.querySelectorAll('.journal-edit-btn').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      e.stopPropagation();
+      openJournalForm(btn.dataset.jid);
+    });
+  });
+}
+
+function highlightPinOnMap(placeId, on){
+  const pinEl = document.querySelector(`.pin[data-id="${placeId}"]`);
+  if(!pinEl) return;
+  pinEl.classList.toggle('map-highlight', on);
+}
+
+function panToPlace(placeId){
+  const place = PLACES[placeId];
+  if(!place) return;
+  const imgEl = document.getElementById('map-img');
+  const iw = imgEl.naturalWidth||4096, ih = imgEl.naturalHeight||2304;
+  const targetScale = Math.max(scale, 1.1);
+  const targetX = place.x/100 * iw;
+  const targetY = place.y/100 * ih;
+  scale = targetScale;
+  panX = window.innerWidth/2  - targetX*scale;
+  panY = window.innerHeight/2 - targetY*scale;
+  const c = clampPan(panX, panY); panX = c.x; panY = c.y;
+  applyTransform();
+  highlightPinOnMap(placeId, true);
+  setTimeout(()=>highlightPinOnMap(placeId, false), 2500);
+}
+
+// ── Add / edit journal entry ──
+document.getElementById('journal-add-btn').addEventListener('click', ()=>openJournalForm(null));
+
+function openJournalForm(id){
+  editingJournalId = id;
+  if(id){
+    const entry = JOURNAL.find(e=>e.id===id);
+    document.getElementById('journal-form-title').textContent = 'Rediger resumé';
+    document.getElementById('jf-title').value = entry.title;
+    document.getElementById('jf-date').value  = entry.date||'';
+    document.getElementById('jf-body').innerHTML = entry.body;
+    document.getElementById('jf-delete').style.display = '';
+  } else {
+    document.getElementById('journal-form-title').textContent = 'Tilføj resumé';
+    document.getElementById('jf-title').value = '';
+    document.getElementById('jf-date').value  = '';
+    document.getElementById('jf-body').innerHTML = '';
+    document.getElementById('jf-delete').style.display = 'none';
+  }
+  journalFormOverlay.style.display = 'flex';
+  setTimeout(()=>document.getElementById('jf-title').focus(), 80);
+}
+
+document.querySelectorAll('.ed-tool-btn[data-jfcmd]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.getElementById('jf-body').focus();
+    document.execCommand(btn.dataset.jfcmd, false, null);
+  });
+});
+
+document.getElementById('jf-cancel').addEventListener('click', ()=>journalFormOverlay.style.display='none');
+journalFormOverlay.addEventListener('click', e=>{ if(e.target===journalFormOverlay) journalFormOverlay.style.display='none'; });
+
+document.getElementById('jf-save').addEventListener('click', ()=>{
+  const title = document.getElementById('jf-title').value.trim() || 'Unavngivet resumé';
+  const date  = document.getElementById('jf-date').value.trim();
+  const body  = document.getElementById('jf-body').innerHTML;
+
+  if(editingJournalId){
+    const entry = JOURNAL.find(e=>e.id===editingJournalId);
+    entry.title = title; entry.date = date; entry.body = body;
+  } else {
+    JOURNAL.push({ id:'j_'+Date.now(), title, date, body });
+  }
+  journalFormOverlay.style.display = 'none';
+  renderJournal();
+});
+
+document.getElementById('jf-delete').addEventListener('click', ()=>{
+  if(confirm('Slet dette resumé permanent?')){
+    JOURNAL = JOURNAL.filter(e=>e.id!==editingJournalId);
+    journalFormOverlay.style.display = 'none';
+    renderJournal();
+  }
+});
+</script>
+
+
+
+</body></html>
